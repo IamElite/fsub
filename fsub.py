@@ -88,6 +88,8 @@ async def handle_added_to_chat(event):
 
 @app.on(events.NewMessage(pattern=r"^/start$", func=lambda e: e.is_private))
 async def start(event):
+    if await check_fsub_handler(event):  # Add this check
+        return
     user = await event.get_sender()
     user_id = user.id
 
@@ -129,6 +131,8 @@ async def start(event):
 
 @app.on(events.NewMessage(pattern=r"^/help$", func=lambda e: e.is_private))
 async def help(event):
+    if await check_fsub_handler(event):  # Add this check
+        return
     user_id = event.sender_id
     missing_subs = await check_owner_fsub(user_id)
     if missing_subs is not True and missing_subs:
@@ -163,6 +167,8 @@ async def is_admin_or_owner(chat_id, user_id):
 
 @app.on(events.NewMessage(pattern=r"^/set( .+)?$", func=lambda e: e.is_group))
 async def set_forcesub(event):
+    if await check_fsub_handler(event):  # Add this check
+        return
     chat_id = event.chat_id
     user_id = event.sender_id
 
@@ -231,6 +237,8 @@ async def set_forcesub(event):
 
 @app.on(events.NewMessage(pattern=r"^/fsub$", func=lambda e: e.is_group))
 async def manage_forcesub(event):
+    if await check_fsub_handler(event):  # Add this check
+        return
     chat_id = event.chat_id
     user_id = event.sender_id
 
@@ -275,6 +283,8 @@ async def toggle_forcesub(event):
 
 @app.on(events.NewMessage(pattern=r"^/reset$", func=lambda e: e.is_group))
 async def reset_forcesub(event):
+    if await check_fsub_handler(event):  # Add this check
+        return
     chat_id = event.chat_id
     user_id = event.sender_id
 
@@ -340,6 +350,8 @@ async def enforce_forcesub(event):
 
 @app.on(events.NewMessage(pattern=r"^/stats$", func=lambda e: e.is_private))
 async def stats(event):
+    if await check_fsub_handler(event):  # Add this check
+        return
     user_id = event.sender_id
     missing_subs = await check_owner_fsub(user_id)
     if missing_subs is not True and missing_subs:
@@ -353,6 +365,8 @@ async def stats(event):
 
 @app.on(events.NewMessage(pattern=r"^/broadcast (.+)$", func=lambda e: e.is_private))
 async def broadcast(event):
+    if await check_fsub_handler(event):  # Add this check
+        return
     user_id = event.sender_id
     missing_subs = await check_owner_fsub(user_id)
     if missing_subs is not True and missing_subs:
@@ -372,6 +386,8 @@ async def broadcast(event):
 
 @app.on(events.NewMessage(pattern=r"^/ban (\d+)$", func=lambda e: e.is_private))
 async def ban_user(event):
+    if await check_fsub_handler(event):  # Add this check
+        return
     user_id = event.sender_id
     missing_subs = await check_owner_fsub(user_id)
     if missing_subs is not True and missing_subs:
@@ -385,6 +401,8 @@ async def ban_user(event):
 
 @app.on(events.NewMessage(pattern=r"^/unban (\d+)$", func=lambda e: e.is_private))
 async def unban_user(event):
+    if await check_fsub_handler(event):  # Add this check
+        return
     user_id = event.sender_id
     missing_subs = await check_owner_fsub(user_id)
     if missing_subs is not True and missing_subs:
@@ -398,6 +416,8 @@ async def unban_user(event):
 
 @app.on(events.NewMessage(func=lambda e: e.is_private))
 async def check_ban(event):
+    if await check_fsub_handler(event):  # Add this check
+        return
     user_id = event.sender_id
     missing_subs = await check_owner_fsub(user_id)
     if missing_subs is not True and missing_subs:
@@ -407,12 +427,18 @@ async def check_ban(event):
 
 @app.on(events.NewMessage)
 async def check_fsub_handler(event):
+    # Skip processing if the command is /start
+    if event.raw_text.strip().lower() == "/start":
+        return False
+
+    user_id = event.sender_id
+
+    # Handle private chats
     if event.is_private:
-        user_id = event.sender_id
         missing_subs = await check_owner_fsub(user_id)
 
         if missing_subs is True:
-            return
+            return False
 
         if missing_subs:
             buttons = []
@@ -434,6 +460,60 @@ async def check_fsub_handler(event):
                 buttons=buttons
             )
             return True
+
+    # Handle group chats
+    if event.is_group:
+        chat_id = event.chat_id
+        forcesub_data = forcesub_collection.find_one({"chat_id": chat_id})
+
+        if not forcesub_data or not forcesub_data.get("channels") or not forcesub_data.get("enabled", True):
+            return False
+
+        is_member = True
+        for channel in forcesub_data["channels"]:
+            try:
+                if isinstance(channel["id"], int):
+                    await app(GetParticipantRequest(channel=channel["id"], participant=user_id))
+                else:
+                    channel_entity = await app.get_entity(channel["id"])
+                    await app(GetParticipantRequest(channel=channel_entity, participant=user_id))
+            except UserNotParticipantError:
+                is_member = False
+                break
+            except Exception as e:
+                if "Could not find the input entity" in str(e):
+                    logger.warning(f"Could not check user {user_id} in channel {channel['id']}: {e}")
+                    is_member = False
+                    break
+                else:
+                    logger.error(f"An error occurred while checking user participation: {e}")
+                    return False
+
+        if not is_member:
+            try:
+                await event.delete()
+            except:
+                pass
+
+            try:
+                await event.reply(
+                    f"**👋 ʜᴇʟʟᴏ {event.sender.first_name},**\n\n"
+                    f"**ʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ᴊᴏɪɴ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n"
+                    f"{chr(10).join([f'๏ [{c['title']}]({c['username']})' for c in forcesub_data['channels']])}",
+                    buttons=[[Button.url(f"๏ ᴊᴏɪɴ {c['title']} ๏", url=c['link']) for c in forcesub_data['channels']]]
+                )
+            except ButtonUrlInvalidError:
+                logger.error(f"Button URL invalid for channel: {channel['username']}")
+                await event.reply(
+                    f"**👋 ʜᴇʟʟᴏ {event.sender.first_name},**\n\n"
+                    f"**ʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ᴊᴏɪɴ ᴛʜᴇ channel to send messages in this group.**\n"
+                    f"**Channel title:** {channel['title']}\n"
+                    f"**Channel username or link:** {channel['username']}"
+                )
+            except Exception as e:
+                logger.error(f"An error occurred while sending the force sub message: {e}")
+            return True
+
     return False
 
 async def startup_notification():
