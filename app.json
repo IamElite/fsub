@@ -8,7 +8,7 @@
         "bot",
         "python"
     ],
-    "repository": "https://github.com/IamElite/csncsfsub",
+    "repository": "https://github.com/IamElite/fsub",
     "env": {
         "BOT_TOKEN": {
             "description": "Your Telegram Bot Token from @BotFather",
