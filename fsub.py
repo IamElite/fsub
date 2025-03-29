@@ -37,9 +37,10 @@ if FSUB:
         if len(fsub_list) > 4:
             logger.warning("Maximum 4 force subscription channels allowed. Using first 4.")
             fsub_list = fsub_list[:4]
-        FSUB_IDS = [int(x) for x in fsub_list]
+        # Ensure FSUB_IDS are integers
+        FSUB_IDS = [int(x) if x.isdigit() or (x.startswith('-') and x[1:].isdigit()) else x for x in fsub_list]
     except:
-        logger.error("Invalid FSUB format. Should be space-separated channel IDs.")
+        logger.error("Invalid FSUB format. Should be space-separated channel IDs or usernames.")
 
 # Add new function to check owner's force sub
 async def check_owner_fsub(user_id):
@@ -49,13 +50,22 @@ async def check_owner_fsub(user_id):
     missing_subs = []
     for channel_id in FSUB_IDS:
         try:
-            await app(GetParticipantRequest(channel=channel_id, participant=user_id))
+            if isinstance(channel_id, int):
+                await app(GetParticipantRequest(channel=channel_id, participant=user_id))
+            else:
+                channel_entity = await app.get_entity(channel_id)
+                await app(GetParticipantRequest(channel=channel_entity, participant=user_id))
         except UserNotParticipantError:
             try:
-                channel = await app.get_entity(channel_id)
+                if isinstance(channel_id, int):
+                    channel = await app.get_entity(channel_id)
+                else:
+                    channel = await app.get_entity(channel_id)
                 missing_subs.append(channel)
             except:
                 continue
+        except Exception as e:
+            logger.error(f"Error checking user in channel {channel_id}: {e}")
     return missing_subs
 
 @app.on(events.ChatAction)
@@ -144,9 +154,16 @@ async def set_forcesub(event):
             if channel_input.startswith("https://t.me/"):
                 channel_input = channel_input.replace("https://t.me/", "")
 
-            channel_entity = await app.get_entity(channel_input)
+            # Attempt to get entity as integer ID first
+            try:
+                channel_id = int(channel_input)
+                channel_entity = await app.get_entity(channel_id)
+            except ValueError:
+                # If not an integer, try as username
+                channel_entity = await app.get_entity(channel_input)
+                channel_id = channel_entity.id
+            
             channel_info = await app(GetFullChannelRequest(channel_entity))
-            channel_id = channel_info.full_chat.id
             channel_title = channel_info.chats[0].title
 
             if channel_info.chats[0].username:
@@ -250,7 +267,11 @@ async def enforce_forcesub(event):
     is_member = True
     for channel in forcesub_data["channels"]:
         try:
-            await app(GetParticipantRequest(channel["id"], user_id))
+            if isinstance(channel["id"], int):
+                await app(GetParticipantRequest(channel=channel["id"], participant=user_id))
+            else:
+                channel_entity = await app.get_entity(channel["id"])
+                await app(GetParticipantRequest(channel=channel_entity, participant=user_id))
         except UserNotParticipantError:
             is_member = False
             break
