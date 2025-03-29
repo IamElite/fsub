@@ -222,15 +222,21 @@ async def enforce_forcesub(event):
             is_member = False
             break
         except Exception as e:
-            logger.error(f"An error occurred while checking user participation: {e}")
-            return
-    
+            if "Could not find the input entity" in str(e):
+                logger.warning(f"Could not check user {user_id} in channel {channel['id']}: {e}")
+                # We can't check this user, so we'll assume they are not a member.
+                is_member = False
+                break
+            else:
+                logger.error(f"An error occurred while checking user participation: {e}")
+                return
+
     if not is_member:
         try:
             await event.delete()
         except:
             pass
-        
+
         try:
             await event.reply(
                 f"**👋 ʜᴇʟʟᴏ {event.sender.first_name},**\n\n"
@@ -299,13 +305,13 @@ async def check_ban(event):
 
 @app.on(events.NewMessage)
 async def check_fsub_handler(event):
-    if event.is_private and event.raw_text.startswith(('/', '/start', '/help', '/set', '/fsub')):
+    if event.is_private:
         user_id = event.sender_id
         missing_subs = await check_owner_fsub(user_id)
-        
+
         if missing_subs is True:
             return
-            
+
         if missing_subs:
             buttons = []
             for channel in missing_subs:
@@ -317,7 +323,7 @@ async def check_fsub_handler(event):
                         buttons.append([Button.url(f"Join {channel.title}", invite.link)])
                     except:
                         continue
-            
+
             await event.reply(
                 "**⚠️ ᴀᴄᴄᴇss ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
                 "**ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
