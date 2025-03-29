@@ -289,7 +289,7 @@ if __name__ == "__main__":
         while True:
             try:
                 # Send startup notification
-                with app:
+                async with app:
                     await app.send_message(
                         LOGGER_ID,
                         "**✅ ʙᴏᴛ ʜᴀs sᴛᴀʀᴛᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ!**\n\n"
