@@ -1,9 +1,8 @@
 import os
 import logging
 from telethon import TelegramClient, events, Button
-from telethon.tl.functions.channels import GetParticipantRequest, GetFullChannelRequest, GetParticipantsRequest, EditAdminRequest
+from telethon.tl.functions.channels import GetParticipantRequest, GetFullChannelRequest
 from telethon.tl.functions.messages import ExportChatInviteRequest
-from telethon.tl.types import ChannelParticipantCreator, ChannelParticipantAdmin, ChannelParticipantsSearch, ChatAdminRights, InputChannel
 from telethon.errors import UserIsBlockedError
 from telethon.errors.rpcerrorlist import UserNotParticipantError, ButtonUrlInvalidError, ChatAdminRequiredError
 from pymongo import MongoClient
@@ -46,7 +45,7 @@ if FSUB:
 async def check_owner_fsub(user_id):
     if not FSUB_IDS or user_id == OWNER_ID:
         return True
-        
+
     missing_subs = []
     for channel_id in FSUB_IDS:
         try:
@@ -61,19 +60,21 @@ async def check_owner_fsub(user_id):
 
 @app.on(events.ChatAction)
 async def handle_added_to_chat(event):
-    if event.user_added and event.user_id == app.uid:
-        chat = await event.get_chat()
-        if chat.username:
-            chat_link = f"https://t.me/{chat.username}"
-        else:
-            chat_link = "Private Group"
-        await app.send_message(
-            LOGGER_ID,
-            f"**🔔 ʙᴏᴛ ᴀᴅᴅᴇᴅ ᴛᴏ ɴᴇᴡ ᴄʜᴀᴛ**\n\n"
-            f"**ᴄʜᴀᴛ ɴᴀᴍᴇ:** {chat.title}\n"
-            f"**ᴄʜᴀᴛ ɪᴅ:** `{chat.id}`\n"
-            f"**ʟɪɴᴋ:** {chat_link}"
-        )
+    if event.user_added:
+        me = await app.get_me()
+        if event.user_id == me.id:
+            chat = await event.get_chat()
+            if chat.username:
+                chat_link = f"https://t.me/{chat.username}"
+            else:
+                chat_link = "Private Group"
+            await app.send_message(
+                LOGGER_ID,
+                f"**🔔 ʙᴏᴛ ᴀᴅᴅᴇᴅ ᴛᴏ ɴᴇᴡ ᴄʜᴀᴛ**\n\n"
+                f"**ᴄʜᴀᴛ ɴᴀᴍᴇ:** {chat.title}\n"
+                f"**ᴄʜᴀᴛ ɪᴅ:** `{chat.id}`\n"
+                f"**ʟɪɴᴋ:** {chat_link}"
+            )
 
 @app.on(events.NewMessage(pattern=r"^/start$", func=lambda e: e.is_private))
 async def start(event):
@@ -142,12 +143,12 @@ async def set_forcesub(event):
         try:
             if channel_input.startswith("https://t.me/"):
                 channel_input = channel_input.replace("https://t.me/", "")
-            
+
             channel_entity = await app.get_entity(channel_input)
             channel_info = await app(GetFullChannelRequest(channel_entity))
             channel_id = channel_info.full_chat.id
             channel_title = channel_info.chats[0].title
-            
+
             if channel_info.chats[0].username:
                 channel_username = f"@{channel_info.chats[0].username}"
                 channel_link = f"https://t.me/{channel_info.chats[0].username}"
@@ -155,15 +156,7 @@ async def set_forcesub(event):
                 invite = await app(ExportChatInviteRequest(channel_id))
                 channel_username = invite.link
                 channel_link = invite.link
-            
-            channel_members = await app(GetParticipantsRequest(
-                channel=channel_id,
-                filter=ChannelParticipantsSearch(''),
-                offset=0,
-                limit=1
-            ))
-            channel_members_count = channel_members.count
-            
+
             fsub_data.append({"id": channel_id, "username": channel_username, "title": channel_title, "link": channel_link})
         except Exception as e:
             logger.error(f"Error fetching channel info for {channel_input}: {e}")
@@ -174,11 +167,11 @@ async def set_forcesub(event):
         {"$set": {"channels": fsub_data, "enabled": True}},
         upsert=True
     )
-    
+
     set_by_user = f"@{event.sender.username}" if event.sender.username else event.sender.first_name
-    
+
     channel_list = "\n".join([f"**{c['title']}** ({c['username']})" for c in fsub_data])
-    
+
     if len(fsub_data) == 1:
         channel_info = fsub_data[0]
         await event.reply(
@@ -203,13 +196,13 @@ async def manage_forcesub(event):
         return await event.reply("**🚫 ɴᴏ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ɪs sᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ.**")
 
     channel_list = "\n".join([f"**{c['title']}** ({c['username']})" for c in forcesub_data["channels"]])
-    
+
     is_enabled = forcesub_data.get("enabled", True)
-    
+
     buttons = [
         [Button.inline("ON" if not is_enabled else "OFF", data=f"fsub_{'on' if not is_enabled else 'off'}_{chat_id}")]
     ]
-    
+
     await event.reply(
         f"**📊 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n{channel_list}\n\n**ᴄᴜʀʀᴇɴᴛ sᴛᴀᴛᴜs:** {'Enabled' if is_enabled else 'Disabled'}",
         buttons=buttons
@@ -219,7 +212,7 @@ async def manage_forcesub(event):
 async def toggle_forcesub(event):
     action, chat_id = event.pattern_match.group(1), int(event.pattern_match.group(2))
     user_id = event.sender_id
-    
+
     if not await is_admin_or_owner(chat_id, user_id):
         return await event.answer("ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.", alert=True)
 
@@ -299,7 +292,7 @@ async def enforce_forcesub(event):
 async def stats(event):
     if event.sender_id != OWNER_ID:
         return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
-    
+
     total_users = len(await app.get_dialogs())
     banned_users = banned_users_collection.count_documents({})
     await event.reply(f"**📊 ʙᴏᴛ sᴛᴀᴛɪsᴛɪᴄs:**\n\n**➲ ᴛᴏᴛᴀʟ ᴜsᴇʀs:** {total_users}\n**➲ ʙᴀɴɴᴇᴅ ᴜsᴇʀs:** {banned_users}")
@@ -308,7 +301,7 @@ async def stats(event):
 async def broadcast(event):
     if event.sender_id != OWNER_ID:
         return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
-    
+
     message = event.pattern_match.group(1)
     async for dialog in app.iter_dialogs():
         try:
@@ -323,7 +316,7 @@ async def broadcast(event):
 async def ban_user(event):
     if event.sender_id != OWNER_ID:
         return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
-    
+
     user_id = int(event.pattern_match.group(1))
     banned_users_collection.insert_one({"user_id": user_id})
     await event.reply(f"**✅ ᴜsᴇʀ {user_id} ʜᴀs ʙᴇᴇɴ ʙᴀɴɴᴇᴅ.**")
@@ -332,7 +325,7 @@ async def ban_user(event):
 async def unban_user(event):
     if event.sender_id != OWNER_ID:
         return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
-    
+
     user_id = int(event.pattern_match.group(1))
     banned_users_collection.delete_one({"user_id": user_id})
     await event.reply(f"**✅ ᴜsᴇʀ {user_id} ʜᴀs ʙᴇᴇɴ ᴜɴʙᴀɴɴᴇᴅ.**")
