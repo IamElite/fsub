@@ -1,11 +1,11 @@
 import os
 import logging
 from telethon import TelegramClient, events, Button
-from telethon.tl.functions.channels import GetParticipantRequest, GetFullChannelRequest
+from telethon.tl.functions.channels import GetParticipantRequest, GetFullChannelRequest, GetParticipantsRequest
 from telethon.tl.functions.messages import ExportChatInviteRequest
-from telethon.tl.types import ChannelParticipantCreator, ChannelParticipantAdmin
+from telethon.tl.types import ChannelParticipantCreator, ChannelParticipantAdmin, ChannelParticipantsSearch
 from telethon.errors import UserIsBlockedError
-from telethon.errors.rpcerrorlist import UserNotParticipantError
+from telethon.errors.rpcerrorlist import UserNotParticipantError, ButtonUrlInvalidError
 from pymongo import MongoClient
 import asyncio
 
@@ -134,10 +134,21 @@ async def set_forcesub(event):
             channel_title = channel_info.chats[0].title
             if channel_info.chats[0].username:
                 channel_username = f"@{channel_info.chats[0].username}"
+                channel_link = f"https://t.me/{channel_info.chats[0].username}"
             else:
                 invite = await app(ExportChatInviteRequest(channel_id))
                 channel_username = invite.link
-            fsub_data.append({"id": channel_id, "username": channel_username, "title": channel_title})
+                channel_link = invite.link
+            
+            channel_members = await app(GetParticipantsRequest(
+                channel=channel_id,
+                filter=ChannelParticipantsSearch(''),
+                offset=0,
+                limit=1
+            ))
+            channel_members_count = channel_members.count
+            
+            fsub_data.append({"id": channel_id, "username": channel_username, "title": channel_title, "link": channel_link})
         except Exception as e:
             logger.error(f"Error fetching channel info for {channel_input}: {e}")
             return await event.reply(f"**🚫 ғᴀɪʟᴇᴅ ᴛᴏ ғᴇᴛᴄʜ ᴅᴀᴛᴀ ғᴏʀ {channel_input}.**")
@@ -147,9 +158,21 @@ async def set_forcesub(event):
         {"$set": {"channels": fsub_data}},
         upsert=True
     )
-
+    
+    set_by_user = f"@{event.sender.username}" if event.sender.username else event.sender.first_name
+    
     channel_list = "\n".join([f"**{c['title']}** ({c['username']})" for c in fsub_data])
-    await event.reply(f"**🎉 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ sᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n{channel_list}")
+    
+    if len(fsub_data) == 1:
+        channel_info = fsub_data[0]
+        await event.reply(
+            f"**🎉 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ sᴇᴛ ᴛᴏ** [{channel_info['title']}]({channel_info['username']}) **ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ.**\n\n"
+            f"**🆔 ᴄʜᴀɴɴᴇʟ ɪᴅ:** `{channel_info['id']}`\n"
+            f"**🖇️ ᴄʜᴀɴɴᴇʟ ʟɪɴᴋ:** [ɢᴇᴛ ʟɪɴᴋ]({channel_info['link']})\n"
+            f"**👤 sᴇᴛ ʙʏ:** {set_by_user}"
+        )
+    else:
+        await event.reply(f"**🎉 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ sᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n{channel_list}")
 
 @app.on(events.NewMessage(pattern=r"^/fsub$", func=lambda e: e.is_group))
 async def manage_forcesub(event):
@@ -191,17 +214,41 @@ async def enforce_forcesub(event):
     if not forcesub_data or not forcesub_data.get("channels"):
         return
 
+    is_member = True
     for channel in forcesub_data["channels"]:
         try:
             await app(GetParticipantRequest(channel["id"], user_id))
-        except:
+        except UserNotParticipantError:
+            is_member = False
+            break
+        except Exception as e:
+            logger.error(f"An error occurred while checking user participation: {e}")
+            return
+    
+    if not is_member:
+        try:
             await event.delete()
+        except:
+            pass
+        
+        try:
             await event.reply(
                 f"**👋 ʜᴇʟʟᴏ {event.sender.first_name},**\n\n"
-                f"**ʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ᴊᴏɪɴ ᴛʜᴇ [ᴄʜᴀɴɴᴇʟ]({channel['username']}) ᴛᴏ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ.**",
-                buttons=[Button.url("๏ ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟ ๏", url=channel["username"])]
+                f"**ʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ᴊᴏɪɴ ᴛʜᴇ ғᴏʟʟᴏᴡɪɴɢ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n"
+                f"{chr(10).join([f'๏ [{c['title']}]({c['username']})' for c in forcesub_data['channels']])}",
+                buttons=[[Button.url(f"๏ ᴊᴏɪɴ {c['title']} ๏", url=c['username']) for c in forcesub_data['channels']]]
             )
-            return
+        except ButtonUrlInvalidError:
+            logger.error(f"Button URL invalid for channel: {channel['username']}")
+            await event.reply(
+                f"**👋 ʜᴇʟʟᴏ {event.sender.first_name},**\n\n"
+                f"**ʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ᴊᴏɪɴ ᴛʜᴇ channel to send messages in this group.**\n"
+                f"**Channel title:** {channel['title']}\n"
+                f"**Channel username or link:** {channel['username']}"
+            )
+        except Exception as e:
+            logger.error(f"An error occurred while sending the force sub message: {e}")
+        return
 
 @app.on(events.NewMessage(pattern=r"^/stats$", func=lambda e: e.is_private))
 async def stats(event):
