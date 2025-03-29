@@ -2,7 +2,7 @@ import os
 import logging
 from telethon import TelegramClient, events, Button
 from telethon.tl.functions.channels import GetParticipantRequest, GetFullChannelRequest
-from telethon.tl.functions.messages import ExportInviteRequest
+from telethon.tl.functions.messages import ExportChatInviteRequest
 from telethon.tl.types import ChannelParticipantCreator, ChannelParticipantAdmin
 from telethon.errors import UserIsBlockedError
 from telethon.errors.rpcerrorlist import UserNotParticipantError
@@ -134,7 +134,7 @@ async def set_forcesub(event):
             if channel_info.chats[0].username:
                 channel_username = f"@{channel_info.chats[0].username}"
             else:
-                invite = await app(ExportInviteRequest(channel_id))
+                invite = await app(ExportChatInviteRequest(channel_id))
                 channel_username = invite.link
             fsub_data.append({"id": channel_id, "username": channel_username, "title": channel_title})
         except Exception as e:
@@ -265,7 +265,7 @@ async def check_fsub_handler(event):
                     buttons.append([Button.url(f"Join {channel.title}", f"https://t.me/{channel.username}")])
                 else:
                     try:
-                        invite = await app(ExportInviteRequest(channel.id))
+                        invite = await app(ExportChatInviteRequest(channel.id))
                         buttons.append([Button.url(f"Join {channel.title}", invite.link)])
                     except:
                         continue
