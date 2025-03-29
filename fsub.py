@@ -7,6 +7,7 @@ from telethon.tl.types import ChannelParticipantCreator, ChannelParticipantAdmin
 from telethon.errors import UserIsBlockedError
 from telethon.errors.rpcerrorlist import UserNotParticipantError
 from pymongo import MongoClient
+import asyncio
 
 # Logging configuration
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -283,16 +284,27 @@ async def check_fsub_handler(event):
 if __name__ == "__main__":
     logger.info("Starting the bot...")
     app.start(bot_token=BOT_TOKEN)
-    
-    # Send startup notification
-    with app:
-        app.loop.run_until_complete(app.send_message(
-            LOGGER_ID,
-            "**✅ ʙᴏᴛ ʜᴀs sᴛᴀʀᴛᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ!**\n\n"
-            f"**ʙᴏᴛ ɪɴғᴏ:**\n"
-            f"**➲ ᴏᴡɴᴇʀ ɪᴅ:** `{OWNER_ID}`\n"
-            f"**➲ ʟᴏɢɢᴇʀ ɪᴅ:** `{LOGGER_ID}`"
-        ))
-    
-    logger.info("Bot is running. Press Ctrl+C to stop.")
-    app.run_until_disconnected()
+
+    async def run_bot():
+        while True:
+            try:
+                # Send startup notification
+                with app:
+                    await app.send_message(
+                        LOGGER_ID,
+                        "**✅ ʙᴏᴛ ʜᴀs sᴛᴀʀᴛᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ!**\n\n"
+                        f"**ʙᴏᴛ ɪɴғᴏ:**\n"
+                        f"**➲ ᴏᴡɴᴇʀ ɪᴅ:** `{OWNER_ID}`\n"
+                        f"**➲ ʟᴏɢɢᴇʀ ɪᴅ:** `{LOGGER_ID}`"
+                    )
+
+                logger.info("Bot is running. Press Ctrl+C to stop.")
+                await app.run_until_disconnected()
+            except ConnectionError as e:
+                logger.error(f"Connection error: {e}. Reconnecting in 5 seconds...")
+                await asyncio.sleep(5)
+            except Exception as e:
+                logger.error(f"Unexpected error: {e}. Reconnecting in 5 seconds...")
+                await asyncio.sleep(5)
+
+    asyncio.run(run_bot())
