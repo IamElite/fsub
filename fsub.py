@@ -89,6 +89,31 @@ async def handle_added_to_chat(event):
 @app.on(events.NewMessage(pattern=r"^/start$", func=lambda e: e.is_private))
 async def start(event):
     user = await event.get_sender()
+    user_id = user.id
+
+    missing_subs = await check_owner_fsub(user_id)
+
+    if missing_subs is not True and missing_subs:
+        buttons = []
+        for channel in missing_subs:
+            if hasattr(channel, 'username') and channel.username:
+                buttons.append([Button.url(f"Join {channel.title}", f"https://t.me/{channel.username}")])
+            else:
+                try:
+                    invite = await app(ExportChatInviteRequest(channel.id))
+                    buttons.append([Button.url(f"Join {channel.title}", invite.link)])
+                except:
+                    continue
+
+        await event.reply(
+            "**⚠️ ᴀᴄᴄᴇss ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
+            "**ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
+            "**ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴊᴏɪɴ**\n"
+            "**ᴛʜᴇɴ ᴛʀʏ ᴀɢᴀɪɴ!**",
+            buttons=buttons
+        )
+        return  # Stop further execution if force sub is required
+
     await app.send_message(
         LOGGER_ID,
         f"**🆕 ɴᴇᴡ ᴜsᴇʀ sᴛᴀʀᴛᴇᴅ ᴛʜᴇ ʙᴏᴛ**\n\n"
@@ -104,6 +129,10 @@ async def start(event):
 
 @app.on(events.NewMessage(pattern=r"^/help$", func=lambda e: e.is_private))
 async def help(event):
+    user_id = event.sender_id
+    missing_subs = await check_owner_fsub(user_id)
+    if missing_subs is not True and missing_subs:
+        return
     await event.reply(
         "**📖 ʜᴇʟᴘ ᴍᴇɴᴜ:**\n\n"
         "**/set <ᴄʜᴀɴɴᴇʟ ᴜsᴇʀɴᴀᴍᴇ ᴏʀ ɪᴅ ᴏʀ ʟɪɴᴋ> (ᴜᴘ ᴛᴏ 4)** - ᴛᴏ sᴇᴛ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ғᴏʀ ᴀ ɢʀᴏᴜᴘ.\n"
@@ -311,6 +340,10 @@ async def enforce_forcesub(event):
 
 @app.on(events.NewMessage(pattern=r"^/stats$", func=lambda e: e.is_private))
 async def stats(event):
+    user_id = event.sender_id
+    missing_subs = await check_owner_fsub(user_id)
+    if missing_subs is not True and missing_subs:
+        return
     if event.sender_id != OWNER_ID:
         return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
 
@@ -320,6 +353,10 @@ async def stats(event):
 
 @app.on(events.NewMessage(pattern=r"^/broadcast (.+)$", func=lambda e: e.is_private))
 async def broadcast(event):
+    user_id = event.sender_id
+    missing_subs = await check_owner_fsub(user_id)
+    if missing_subs is not True and missing_subs:
+        return
     if event.sender_id != OWNER_ID:
         return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
 
@@ -335,6 +372,10 @@ async def broadcast(event):
 
 @app.on(events.NewMessage(pattern=r"^/ban (\d+)$", func=lambda e: e.is_private))
 async def ban_user(event):
+    user_id = event.sender_id
+    missing_subs = await check_owner_fsub(user_id)
+    if missing_subs is not True and missing_subs:
+        return
     if event.sender_id != OWNER_ID:
         return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
 
@@ -344,6 +385,10 @@ async def ban_user(event):
 
 @app.on(events.NewMessage(pattern=r"^/unban (\d+)$", func=lambda e: e.is_private))
 async def unban_user(event):
+    user_id = event.sender_id
+    missing_subs = await check_owner_fsub(user_id)
+    if missing_subs is not True and missing_subs:
+        return
     if event.sender_id != OWNER_ID:
         return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
 
@@ -353,6 +398,10 @@ async def unban_user(event):
 
 @app.on(events.NewMessage(func=lambda e: e.is_private))
 async def check_ban(event):
+    user_id = event.sender_id
+    missing_subs = await check_owner_fsub(user_id)
+    if missing_subs is not True and missing_subs:
+        return
     if banned_users_collection.find_one({"user_id": event.sender_id}):
         return await event.reply("**🚫 ʏᴏᴜ ᴀʀᴇ ʙᴀɴɴᴇᴅ ғʀᴏᴍ ᴜsɪɴɢ ᴛʜɪs ʙᴏᴛ.**")
 
