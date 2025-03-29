@@ -281,31 +281,29 @@ async def check_fsub_handler(event):
             return True
     return False
 
+async def startup_notification():
+    try:
+        await app.send_message(
+            LOGGER_ID,
+            "**✅ ʙᴏᴛ ʜᴀs sᴛᴀʀᴛᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ!**\n\n"
+            f"**ʙᴏᴛ ɪɴғᴏ:**\n"
+            f"**➲ ᴏᴡɴᴇʀ ɪᴅ:** `{OWNER_ID}`\n"
+            f"**➲ ʟᴏɢɢᴇʀ ɪᴅ:** `{LOGGER_ID}`"
+        )
+    except Exception as e:
+        logger.error(f"Error sending startup notification: {e}")
+
+async def main():
+    await app.start(bot_token=BOT_TOKEN)
+    await startup_notification()
+    logger.info("Bot is running.")
+    await app.run_until_disconnected()
+
 if __name__ == "__main__":
     logger.info("Starting the bot...")
-    app.start(bot_token=BOT_TOKEN)
-
-    async def run_bot():
-        while True:
-            try:
-                # Send startup notification
-                async with app:
-                    await app.send_message(
-                        LOGGER_ID,
-                        "**✅ ʙᴏᴛ ʜᴀs sᴛᴀʀᴛᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ!**\n\n"
-                        f"**ʙᴏᴛ ɪɴғᴏ:**\n"
-                        f"**➲ ᴏᴡɴᴇʀ ɪᴅ:** `{OWNER_ID}`\n"
-                        f"**➲ ʟᴏɢɢᴇʀ ɪᴅ:** `{LOGGER_ID}`"
-                    )
-
-                logger.info("Bot is running. Press Ctrl+C to stop.")
-                await app.run_until_disconnected()
-            except ConnectionError as e:
-                logger.error(f"Connection error: {e}. Reconnecting in 5 seconds...")
-                await asyncio.sleep(5)
-            except Exception as e:
-                logger.error(f"Unexpected error: {e}. Reconnecting in 5 seconds...")
-                await asyncio.sleep(5)
-
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(run_bot())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("Bot stopped manually.")
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {e}")
