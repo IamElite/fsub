@@ -44,6 +44,11 @@
             "description": "Force Subscribe Channel IDs (Optional)",
             "required": false,
             "value": "-1002053640388"
+        },
+        "UPSTREAM_REPO": {
+            "description": "Your repo link)",
+            "required": false,
+            "value": "https://github.com/IamElite/fsub"
         }
     },
     "buildpacks": [
