@@ -1,11 +1,11 @@
 import os
 import logging
 from telethon import TelegramClient, events, Button
-from telethon.tl.functions.channels import GetParticipantRequest, GetFullChannelRequest, ExportInviteRequest
+from telethon.tl.functions.channels import GetParticipantRequest, GetFullChannelRequest
+from telethon.tl.functions.messages import ExportInviteRequest
 from telethon.tl.types import ChannelParticipantCreator, ChannelParticipantAdmin
 from telethon.errors import UserIsBlockedError
 from telethon.errors.rpcerrorlist import UserNotParticipantError
-from telethon.tl.functions.messages import ExportChatInviteRequest
 from pymongo import MongoClient
 
 # Logging configuration
