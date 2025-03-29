@@ -307,4 +307,5 @@ if __name__ == "__main__":
                 logger.error(f"Unexpected error: {e}. Reconnecting in 5 seconds...")
                 await asyncio.sleep(5)
 
-    asyncio.run(run_bot())
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(run_bot())
