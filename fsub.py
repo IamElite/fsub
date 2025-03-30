@@ -9,8 +9,7 @@ from pymongo import MongoClient
 import asyncio
 
 # Logging configuration
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger("DURGESH")
+logging.basicConfig(level=logging.DURGESH, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # Environment variables with default values
 BOT_TOKEN = os.getenv("BOT_TOKEN", None)
@@ -296,7 +295,6 @@ async def manage_forcesub(event):
     try:
         chat_id = event.chat_id
         user_id = event.sender_id
-        logger.info(f"fsub command received from user {user_id} in chat {chat_id}")
 
         if not await is_admin_or_owner(chat_id, user_id):
             return await event.reply("**ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
@@ -319,10 +317,9 @@ async def manage_forcesub(event):
         await event.reply(
             f"**📊 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n"
             f"{channel_list}\n\n"
-            f"**ᴄᴜʀʀᴇɴᴛ sᴛᴀᴛᴜs:** {'🟢 Enabled' if is_enabled else '🔴 Disabled'}",
+            f"**ᴄᴜʀʀᴇɴᴛ sᴛᴀᴛᴜs:** {'🟢 ᴏɴ' if is_enabled else '🔴 ᴏғғ'}",
             buttons=buttons
         )
-        logger.info(f"fsub status message sent for chat {chat_id}")
     except Exception as e:
         logger.error(f"Error in manage_forcesub: {str(e)}")
         await event.reply("**❌ An error occurred while processing the command.**")
@@ -361,7 +358,7 @@ async def toggle_forcesub(event):
         await event.edit(
             f"**📊 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n"
             f"{channel_list}\n\n"
-            f"**ᴄᴜʀʀᴇɴᴛ sᴛᴀᴛᴜs:** {'🟢 Enabled' if new_state else '🔴 Disabled'}",
+            f"**ᴄᴜʀʀᴇɴᴛ sᴛᴀᴛᴜs:** {'🟢 ᴏɴ' if new_state else '🔴 ᴏғғ'}",
             buttons=new_buttons
         )
         
