@@ -9,7 +9,7 @@ from pymongo import MongoClient
 import asyncio
 
 # Logging configuration
-logging.basicConfig(level=logging.DURGESH, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # Environment variables with default values
 BOT_TOKEN = os.getenv("BOT_TOKEN", None)
