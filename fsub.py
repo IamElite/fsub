@@ -10,6 +10,7 @@ import asyncio
 
 # Logging configuration
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger("DURGESH")
 
 # Environment variables with default values
 BOT_TOKEN = os.getenv("BOT_TOKEN", None)
