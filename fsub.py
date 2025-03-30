@@ -33,37 +33,36 @@ groups_collection = db["groups"]
 forcesub_collection = db["forcesubs"]
 banned_users_collection = db["banned_users"]
 
-# Databse  --------->
+# Database functions
 async def add_user(user_id):
-    if not await users_collection.find_one({"user_id": user_id}):
-        await users_collection.insert_one({"user_id": user_id})
+    if not users_collection.find_one({"user_id": user_id}):
+        users_collection.insert_one({"user_id": user_id})
 
 async def add_group(group_id):
-    if not await groups_collection.find_one({"group_id": group_id}):
-        await groups_collection.insert_one({"group_id": group_id}) 
+    if not groups_collection.find_one({"group_id": group_id}):
+        groups_collection.insert_one({"group_id": group_id})
 
 async def remove_group(group_id):
-    if await groups_collection.find_one({"group_id": group_id}):
-        await groups_collection.delete_one({"group_id": group_id})
+    if groups_collection.find_one({"group_id": group_id}):
+        groups_collection.delete_one({"group_id": group_id})
 
 async def get_all_users():
     users = []
-    async for user in users_collection.find():
+    for user in users_collection.find():
         try:
             users.append(user["user_id"])
         except Exception:
             pass
     return users
-    
+
 async def get_all_groups():
-    group = []
-    async for chat in groups_collection.find():
+    groups = []
+    for chat in groups_collection.find():
         try:
-            group.append(chat["group_id"])
+            groups.append(chat["group_id"])
         except Exception:
             pass
-    return group    
-
+    return groups
 
 # Parse force sub channels/groups
 FSUB_IDS = []
