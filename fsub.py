@@ -21,13 +21,49 @@ API_ID = int(os.getenv("API_ID", "0"))
 API_HASH = os.getenv("API_HASH", None)
 FSUB = os.getenv("FSUB", "").strip()
 
-# MongoDB connection
-fsubdb = MongoClient(MONGO_URI)
-forcesub_collection = fsubdb.status_db.status
-banned_users_collection = fsubdb.status_db.banned_users
 
 # Telegram client
 app = TelegramClient('bot', api_id=API_ID, api_hash=API_HASH)
+
+# MongoDB connection
+mongo_client = MongoClient(MONGO_URI)
+db = mongo_client.fsub
+users_collection = db["users"]
+groups_collection = db["groups"]
+forcesub_collection = db["forcesubs"]
+banned_users_collection = db["banned_users"]
+
+# Databse  --------->
+async def add_user(user_id):
+    if not await users_collection.find_one({"user_id": user_id}):
+        await users_collection.insert_one({"user_id": user_id})
+
+async def add_group(group_id):
+    if not await groups_collection.find_one({"group_id": group_id}):
+        await groups_collection.insert_one({"group_id": group_id}) 
+
+async def remove_group(group_id):
+    if await groups_collection.find_one({"group_id": group_id}):
+        await groups_collection.delete_one({"group_id": group_id})
+
+async def get_all_users():
+    users = []
+    async for user in users_collection.find():
+        try:
+            users.append(user["user_id"])
+        except Exception:
+            pass
+    return users
+    
+async def get_all_groups():
+    group = []
+    async for chat in groups_collection.find():
+        try:
+            group.append(chat["group_id"])
+        except Exception:
+            pass
+    return group    
+
 
 # Parse force sub channels/groups
 FSUB_IDS = []
@@ -104,6 +140,7 @@ async def handle_added_to_chat(event):
         me = await app.get_me()
         if event.user_id == me.id:
             chat = await event.get_chat()
+            await add_group(chat.id)  # Add group to the database
             if chat.username:
                 chat_link = f"https://t.me/{chat.username}"
             else:
@@ -115,10 +152,16 @@ async def handle_added_to_chat(event):
                 f"**ᴄʜᴀᴛ ɪᴅ:** `{chat.id}`\n"
                 f"**ʟɪɴᴋ:** {chat_link}"
             )
+    elif event.user_removed:
+        me = await app.get_me()
+        if event.user_id == me.id:
+            await remove_group(event.chat_id)  # Remove group when bot is removed
 
 @app.on(events.NewMessage(pattern=r"^/start$", func=lambda e: e.is_private))
 @check_fsub
 async def start(event):
+    user_id = event.sender_id
+    await add_user(user_id)  # Add user to the database
     user = await event.get_sender()
     user_id = user.id
 
@@ -175,6 +218,8 @@ async def set_forcesub(event):
 
     if not await is_admin_or_owner(chat_id, user_id):
         return await event.reply("**ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
+
+    await add_group(chat_id)  # Add group to database when setting force sub
 
     command = event.pattern_match.group(1)
     if not command:
@@ -290,6 +335,7 @@ async def reset_forcesub(event):
     if not await is_admin_or_owner(chat_id, user_id):
         return await event.reply("**ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
 
+    await remove_group(chat_id)  # Remove group from the database
     forcesub_collection.delete_one({"chat_id": chat_id})
     await event.reply("**✅ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ʜᴀs ʙᴇᴇɴ ʀᴇsᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ.**")
 
@@ -300,26 +346,71 @@ async def stats(event):
     if event.sender_id != OWNER_ID:
         return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
 
-    total_users = len(await app.get_dialogs())
+    total_users = len(await get_all_users())  # Get all users from the database
+    total_groups = len(await get_all_groups())  # Get all groups from the database
     banned_users = banned_users_collection.count_documents({})
-    await event.reply(f"**📊 ʙᴏᴛ sᴛᴀᴛɪsᴛɪᴄs:**\n\n**➲ ᴛᴏᴛᴀʟ ᴜsᴇʀs:** {total_users}\n**➲ ʙᴀɴɴᴇᴅ ᴜsᴇʀs:** {banned_users}")
+    await event.reply(
+        f"**📊 ʙᴏᴛ sᴛᴀᴛɪsᴛɪᴄs:**\n\n"
+        f"**➲ ᴛᴏᴛᴀʟ ᴜsᴇʀs:** {total_users}\n"
+        f"**➲ ᴛᴏᴛᴀʟ ɢʀᴏᴜᴘs:** {total_groups}\n"
+        f"**➲ ʙᴀɴɴᴇᴅ ᴜsᴇʀs:** {banned_users}"
+    )
 
-@app.on(events.NewMessage(pattern=r"^/broadcast (.+)$", func=lambda e: e.is_private))
+@app.on(events.NewMessage(pattern=r"^/(broadcast|gcast)( .*)?$", func=lambda e: e.is_private))
 @check_fsub
 async def broadcast(event):
-    user_id = event.sender_id
     if event.sender_id != OWNER_ID:
         return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
 
-    message = event.pattern_match.group(1)
-    async for dialog in app.iter_dialogs():
+    # Check if there's a replied message or text content
+    reply = event.reply_to_message if hasattr(event, 'reply_to_message') else None
+    text = event.pattern_match.group(2)
+
+    if not reply and not text:
+        return await event.reply("**❖ ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴍᴇssᴀɢᴇ ᴏʀ ᴘʀᴏᴠɪᴅᴇ ᴛᴇxᴛ ᴛᴏ ʙʀᴏᴀᴅᴄᴀsᴛ.**")
+
+    progress_msg = await event.reply("**❖ ʙʀᴏᴀᴅᴄᴀsᴛɪɴɢ ᴍᴇssᴀɢᴇ ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ...**")
+
+    sent_groups, sent_users, failed, pinned = 0, 0, 0, 0
+    
+    # Get all users and groups
+    users = await get_all_users()
+    groups = await get_all_groups()
+    
+    # Combine recipients
+    recipients = groups + users
+
+    for chat_id in recipients:
         try:
-            await app.send_message(dialog.id, message)
-        except UserIsBlockedError:
-            logger.warning(f"User {dialog.id} has blocked the bot.")
+            if reply:
+                msg = await event.reply_to_message.forward(chat_id)
+            else:
+                msg = await app.send_message(chat_id, text.strip())
+            
+            # Check if it's a group and try to pin
+            if isinstance(chat_id, int) and chat_id < 0:
+                try:
+                    await app.pin_message(chat_id, msg.id, notify=False)
+                    pinned += 1
+                except:
+                    pass
+                sent_groups += 1
+            else:
+                sent_users += 1
+
+            await asyncio.sleep(0.2)  # Prevent rate limits
+
         except Exception as e:
-            logger.error(f"Failed to send message to {dialog.id}: {e}")
-    await event.reply("**✅ ʙʀᴏᴀᴅᴄᴀsᴛ ᴄᴏᴍᴘʟᴇᴛᴇ.**")
+            logger.error(f"Failed to send broadcast to {chat_id}: {e}")
+            failed += 1
+
+    await progress_msg.edit(
+        f"**✅ ʙʀᴏᴀᴅᴄᴀsᴛ ᴄᴏᴍᴘʟᴇᴛᴇᴅ.**\n\n"
+        f"**👥 ɢʀᴏᴜᴘs sᴇɴᴛ:** {sent_groups}\n"
+        f"**🧑‍💻 ᴜsᴇʀs sᴇɴᴛ:** {sent_users}\n"
+        f"**📌 ᴘɪɴɴᴇᴅ:** {pinned}\n"
+        f"**❌ ғᴀɪʟᴇᴅ:** {failed}"
+    )
 
 @app.on(events.NewMessage(pattern=r"^/ban (\d+)$", func=lambda e: e.is_private))
 @check_fsub
@@ -348,6 +439,13 @@ async def check_ban(event):
     user_id = event.sender_id
     if banned_users_collection.find_one({"user_id": event.sender_id}):
         return await event.reply("**🚫 ʏᴏᴜ ᴀʀᴇ ʙᴀɴɴᴇᴅ ғʀᴏᴍ ᴜsɪɴɢ ᴛʜɪs ʙᴏᴛ.**")
+
+@app.on(events.NewMessage)
+async def handle_new_message(event):
+    if event.is_private:
+        await add_user(event.sender_id)  # Add user to database on any private message
+    elif event.is_group:
+        await add_group(event.chat_id)  # Add group to database if not already added
 
 @app.on(events.NewMessage)
 async def check_fsub_handler(event):
@@ -436,12 +534,18 @@ async def check_fsub_handler(event):
 
 async def startup_notification():
     try:
+        # Initialize database counts
+        total_users = len(await get_all_users())
+        total_groups = len(await get_all_groups())
+        
         await app.send_message(
             LOGGER_ID,
             "**✅ ʙᴏᴛ ʜᴀs sᴛᴀʀᴛᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ!**\n\n"
             f"**ʙᴏᴛ ɪɴғᴏ:**\n"
             f"**➲ ᴏᴡɴᴇʀ ɪᴅ:** `{OWNER_ID}`\n"
-            f"**➲ ʟᴏɢɢᴇʀ ɪᴅ:** `{LOGGER_ID}`"
+            f"**➲ ʟᴏɢɢᴇʀ ɪᴅ:** `{LOGGER_ID}`\n"
+            f"**➲ ᴛᴏᴛᴀʟ ᴜsᴇʀs:** `{total_users}`\n"
+            f"**➲ ᴛᴏᴛᴀʟ ɢʀᴏᴜᴘs:** `{total_groups}`"
         )
     except Exception as e:
         logger.error(f"Error sending startup notification: {e}")
