@@ -107,29 +107,39 @@ async def check_owner_fsub(user_id):
 def check_fsub(func):
     async def wrapper(event):
         user_id = event.sender_id
-        if event.is_private:
-            missing_subs = await check_owner_fsub(user_id)
-            if missing_subs is True:
-                return await func(event)
-            if missing_subs:
-                buttons = []
-                for channel in missing_subs:
-                    if hasattr(channel, 'username') and channel.username:
-                        buttons.append([Button.url(f"Join {channel.title}", f"https://t.me/{channel.username}")])
-                    else:
-                        try:
-                            invite = await app(ExportChatInviteRequest(channel.id))
-                            buttons.append([Button.url(f"Join {channel.title}", invite.link)])
-                        except:
-                            continue
-                await event.reply(
-                    "**⚠️ ᴀᴄᴄᴇss ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
-                    "**ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
-                    "**ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴊᴏɪɴ**\n"
-                    "**ᴛʜᴇɴ ᴛʀʏ ᴀɢᴀɪɴ!**",
-                    buttons=buttons
-                )
-                return
+        
+        # Skip check for non-private chats or specific handlers
+        if not event.is_private or isinstance(event, events.CallbackQuery):
+            return await func(event)
+            
+        # Set a custom attribute to prevent duplicate checks
+        if hasattr(event, '_fsub_checked'):
+            return await func(event)
+        event._fsub_checked = True
+        
+        missing_subs = await check_owner_fsub(user_id)
+        if missing_subs is True:
+            return await func(event)
+            
+        if missing_subs:
+            buttons = []
+            for channel in missing_subs:
+                if hasattr(channel, 'username') and channel.username:
+                    buttons.append([Button.url(f"Join {channel.title}", f"https://t.me/{channel.username}")])
+                else:
+                    try:
+                        invite = await app(ExportChatInviteRequest(channel.id))
+                        buttons.append([Button.url(f"Join {channel.title}", invite.link)])
+                    except:
+                        continue
+            await event.reply(
+                "**⚠️ ᴀᴄᴄᴇss ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
+                "**ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
+                "**ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴊᴏɪɴ**\n"
+                "**ᴛʜᴇɴ ᴛʀʏ ᴀɢᴀɪɴ!**",
+                buttons=buttons
+            )
+            return
         return await func(event)
     return wrapper
 
@@ -294,36 +304,59 @@ async def manage_forcesub(event):
         return await event.reply("**🚫 ɴᴏ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ɪs sᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ.**")
 
     channel_list = "\n".join([f"**{c['title']}** ({c['username']})" for c in forcesub_data["channels"]])
-
     is_enabled = forcesub_data.get("enabled", True)
 
+    # Update button formatting
     buttons = [
-        [Button.inline("ON" if not is_enabled else "OFF", data=f"fsub_{'on' if not is_enabled else 'off'}_{chat_id}")]
+        [Button.inline("🔴 ᴛᴜʀɴ ᴏғғ" if is_enabled else "🟢 ᴛᴜʀɴ ᴏɴ", 
+                      data=f"fsub_{'off' if is_enabled else 'on'}_{chat_id}")]
     ]
 
     await event.reply(
-        f"**📊 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n{channel_list}\n\n**ᴄᴜʀʀᴇɴᴛ sᴛᴀᴛᴜs:** {'Enabled' if is_enabled else 'Disabled'}",
+        f"**📊 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n"
+        f"{channel_list}\n\n"
+        f"**ᴄᴜʀʀᴇɴᴛ sᴛᴀᴛᴜs:** {'🟢 Enabled' if is_enabled else '🔴 Disabled'}",
         buttons=buttons
     )
 
 @app.on(events.CallbackQuery(pattern=r"fsub_(on|off)_(\d+)"))
 async def toggle_forcesub(event):
-    action, chat_id = event.pattern_match.group(1), int(event.pattern_match.group(2))
+    action, chat_id = event.data.decode().split("_")[1:] # Fix data parsing
+    chat_id = int(chat_id)
     user_id = event.sender_id
 
     if not await is_admin_or_owner(chat_id, user_id):
-        return await event.answer("ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.", alert=True)
+        return await event.answer("**ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs.**", alert=True)
 
     forcesub_data = forcesub_collection.find_one({"chat_id": chat_id})
     if not forcesub_data:
-        return await event.answer("ɴᴏ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ɪs sᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ.", alert=True)
+        return await event.answer("**ɴᴏ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ɪs sᴇᴛ.**", alert=True)
 
-    if action == "on":
-        forcesub_collection.update_one({"chat_id": chat_id}, {"$set": {"enabled": True}})
-        await event.edit("**✅ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ʜᴀs ʙᴇᴇɴ ᴇɴᴀʙʟᴇᴅ.**")
-    elif action == "off":
-        forcesub_collection.update_one({"chat_id": chat_id}, {"$set": {"enabled": False}})
-        await event.edit("**❌ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ʜᴀs ʙᴇᴇɴ ᴅɪsᴀʙʟᴇᴅ.**")
+    new_state = action == "on"
+    forcesub_collection.update_one(
+        {"chat_id": chat_id},
+        {"$set": {"enabled": new_state}}
+    )
+
+    # Update message with new status and button
+    channel_list = "\n".join([f"**{c['title']}** ({c['username']})" for c in forcesub_data["channels"]])
+    buttons = [
+        [Button.inline("🔴 ᴛᴜʀɴ ᴏғғ" if new_state else "🟢 ᴛᴜʀɴ ᴏɴ", 
+                      data=f"fsub_{'off' if new_state else 'on'}_{chat_id}")]
+    ]
+
+    await event.edit(
+        f"**📊 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n"
+        f"{channel_list}\n\n"
+        f"**ᴄᴜʀʀᴇɴᴛ sᴛᴀᴛᴜs:** {'🟢 Enabled' if new_state else '🔴 Disabled'}",
+        buttons=buttons
+    )
+    
+    # Show alert to confirm action
+    await event.answer(
+        f"**ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ {new_state and 'enabled' or 'disabled'} sᴜᴄᴄᴇssғᴜʟʟʏ!**",
+        alert=True
+    )
 
 @app.on(events.NewMessage(pattern=r"^/reset$", func=lambda e: e.is_group))
 @check_fsub
@@ -448,6 +481,10 @@ async def handle_new_message(event):
 
 @app.on(events.NewMessage)
 async def check_fsub_handler(event):
+    # Skip if already checked by decorator
+    if hasattr(event, '_fsub_checked'):
+        return
+        
     user_id = event.sender_id
 
     # Handle private chats
