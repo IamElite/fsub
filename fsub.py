@@ -293,70 +293,87 @@ async def set_forcesub(event):
 @app.on(events.NewMessage(pattern=r"^/fsub$", func=lambda e: e.is_group))
 @check_fsub
 async def manage_forcesub(event):
-    chat_id = event.chat_id
-    user_id = event.sender_id
+    try:
+        chat_id = event.chat_id
+        user_id = event.sender_id
+        logger.info(f"fsub command received from user {user_id} in chat {chat_id}")
 
-    if not await is_admin_or_owner(chat_id, user_id):
-        return await event.reply("**ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
+        if not await is_admin_or_owner(chat_id, user_id):
+            return await event.reply("**ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
 
-    forcesub_data = forcesub_collection.find_one({"chat_id": chat_id})
-    if not forcesub_data or not forcesub_data.get("channels"):
-        return await event.reply("**🚫 ɴᴏ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ɪs sᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ.**")
+        forcesub_data = forcesub_collection.find_one({"chat_id": chat_id})
+        if not forcesub_data or not forcesub_data.get("channels"):
+            return await event.reply("**🚫 ɴᴏ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ɪs sᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ.**")
 
-    channel_list = "\n".join([f"**{c['title']}** ({c['username']})" for c in forcesub_data["channels"]])
-    is_enabled = forcesub_data.get("enabled", True)
+        channel_list = "\n".join([f"**{c['title']}** ({c['username']})" for c in forcesub_data["channels"]])
+        is_enabled = forcesub_data.get("enabled", True)
+        
+        # Create unique callback data
+        callback_data = f"fsub_toggle_{chat_id}_{1 if not is_enabled else 0}"
+        
+        buttons = [[Button.inline(
+            "🔴 ᴛᴜʀɴ ᴏғғ" if is_enabled else "🟢 ᴛᴜʀɴ ᴏɴ", 
+            callback_data
+        )]]
 
-    # Update button formatting
-    buttons = [
-        [Button.inline("🔴 ᴛᴜʀɴ ᴏғғ" if is_enabled else "🟢 ᴛᴜʀɴ ᴏɴ", 
-                      data=f"fsub_{'off' if is_enabled else 'on'}_{chat_id}")]
-    ]
+        await event.reply(
+            f"**📊 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n"
+            f"{channel_list}\n\n"
+            f"**ᴄᴜʀʀᴇɴᴛ sᴛᴀᴛᴜs:** {'🟢 Enabled' if is_enabled else '🔴 Disabled'}",
+            buttons=buttons
+        )
+        logger.info(f"fsub status message sent for chat {chat_id}")
+    except Exception as e:
+        logger.error(f"Error in manage_forcesub: {str(e)}")
+        await event.reply("**❌ An error occurred while processing the command.**")
 
-    await event.reply(
-        f"**📊 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n"
-        f"{channel_list}\n\n"
-        f"**ᴄᴜʀʀᴇɴᴛ sᴛᴀᴛᴜs:** {'🟢 Enabled' if is_enabled else '🔴 Disabled'}",
-        buttons=buttons
-    )
-
-@app.on(events.CallbackQuery(pattern=r"fsub_(on|off)_(\d+)"))
+@app.on(events.CallbackQuery(pattern=r"fsub_toggle_(\-?\d+)_([01])"))
 async def toggle_forcesub(event):
-    action, chat_id = event.data.decode().split("_")[1:] # Fix data parsing
-    chat_id = int(chat_id)
-    user_id = event.sender_id
+    try:
+        chat_id = int(event.pattern_match.group(1))
+        new_state = bool(int(event.pattern_match.group(2)))
+        user_id = event.sender_id
+        
+        logger.info(f"Toggle callback received: chat_id={chat_id}, new_state={new_state}, user_id={user_id}")
 
-    if not await is_admin_or_owner(chat_id, user_id):
-        return await event.answer("**ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs.**", alert=True)
+        if not await is_admin_or_owner(chat_id, user_id):
+            return await event.answer("**ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs.**", alert=True)
 
-    forcesub_data = forcesub_collection.find_one({"chat_id": chat_id})
-    if not forcesub_data:
-        return await event.answer("**ɴᴏ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ɪs sᴇᴛ.**", alert=True)
+        forcesub_data = forcesub_collection.find_one({"chat_id": chat_id})
+        if not forcesub_data:
+            return await event.answer("**ɴᴏ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ɪs sᴇᴛ.**", alert=True)
 
-    new_state = action == "on"
-    forcesub_collection.update_one(
-        {"chat_id": chat_id},
-        {"$set": {"enabled": new_state}}
-    )
+        # Update database
+        forcesub_collection.update_one(
+            {"chat_id": chat_id},
+            {"$set": {"enabled": new_state}}
+        )
+        logger.info(f"Database updated for chat {chat_id}, new state: {new_state}")
 
-    # Update message with new status and button
-    channel_list = "\n".join([f"**{c['title']}** ({c['username']})" for c in forcesub_data["channels"]])
-    buttons = [
-        [Button.inline("🔴 ᴛᴜʀɴ ᴏғғ" if new_state else "🟢 ᴛᴜʀɴ ᴏɴ", 
-                      data=f"fsub_{'off' if new_state else 'on'}_{chat_id}")]
-    ]
+        # Update message
+        channel_list = "\n".join([f"**{c['title']}** ({c['username']})" for c in forcesub_data["channels"]])
+        next_state = not new_state
+        new_buttons = [[Button.inline(
+            "🔴 ᴛᴜʀɴ ᴏғғ" if new_state else "🟢 ᴛᴜʀɴ ᴏɴ",
+            f"fsub_toggle_{chat_id}_{1 if next_state else 0}"
+        )]]
 
-    await event.edit(
-        f"**📊 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n"
-        f"{channel_list}\n\n"
-        f"**ᴄᴜʀʀᴇɴᴛ sᴛᴀᴛᴜs:** {'🟢 Enabled' if new_state else '🔴 Disabled'}",
-        buttons=buttons
-    )
-    
-    # Show alert to confirm action
-    await event.answer(
-        f"**ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ {new_state and 'enabled' or 'disabled'} sᴜᴄᴄᴇssғᴜʟʟʏ!**",
-        alert=True
-    )
+        await event.edit(
+            f"**📊 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n"
+            f"{channel_list}\n\n"
+            f"**ᴄᴜʀʀᴇɴᴛ sᴛᴀᴛᴜs:** {'🟢 Enabled' if new_state else '🔴 Disabled'}",
+            buttons=new_buttons
+        )
+        
+        await event.answer(
+            f"**✅ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ {new_state and 'enabled' or 'disabled'} sᴜᴄᴄᴇssғᴜʟʟʏ!**",
+            alert=True
+        )
+        logger.info(f"Toggle complete for chat {chat_id}, new state: {new_state}")
+        
+    except Exception as e:
+        logger.error(f"Error in toggle_forcesub: {str(e)}")
+        await event.answer("**❌ An error occurred while processing your request.**", alert=True)
 
 @app.on(events.NewMessage(pattern=r"^/reset$", func=lambda e: e.is_group))
 @check_fsub
