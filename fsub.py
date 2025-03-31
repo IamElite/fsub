@@ -171,7 +171,8 @@ async def handle_added_to_chat(event):
                 f"**ʟɪɴᴋ:** {chat_link}"
             )
 
-@app.on(events.NewMessage(pattern=r"^/start$"))
+# Update start command pattern to include optional bot username
+@app.on(events.NewMessage(pattern=r"^/start(?:@\w+)?$"))
 @check_fsub
 async def start(event):
     user_id = event.sender_id
@@ -192,7 +193,8 @@ async def start(event):
         "**➲ ᴛʏᴘᴇ /help ғᴏʀ ᴍᴏʀᴇ ɪɴғᴏʀᴍᴀᴛɪᴏɴ.**"
     )
 
-@app.on(events.NewMessage(pattern=r"^/help$"))
+# Update help command pattern to include optional bot username
+@app.on(events.NewMessage(pattern=r"^/help(?:@\w+)?$"))
 @check_fsub
 async def help(event):
     user_id = event.sender_id
@@ -213,7 +215,7 @@ async def help(event):
         "**/reset** - ᴛᴏ ʀᴇsᴇᴛ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ.\n\n"
         "**➲ ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜᴇsᴇ ᴄᴏᴍᴍᴀɴᴅs.**"
      )
-
+    
 async def is_admin_or_owner(chat_id, user_id):
     try:
         member = await app.get_permissions(chat_id, user_id)
@@ -391,7 +393,7 @@ async def reset_forcesub(event):
     forcesub_collection.delete_one({"chat_id": chat_id})
     await event.reply("**✅ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ʜᴀs ʙᴇᴇɴ ʀᴇsᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ.**")
 
-@app.on(events.NewMessage(pattern=r"^/stats$"))
+@app.on(events.NewMessage(pattern=r"^/stats$", func=lambda e: e.is_private))
 @check_fsub
 async def stats(event):
     user_id = event.sender_id
@@ -407,28 +409,6 @@ async def stats(event):
         f"**➲ ᴛᴏᴛᴀʟ ɢʀᴏᴜᴘs:** {total_groups}\n"
         f"**➲ ʙᴀɴɴᴇᴅ ᴜsᴇʀs:** {banned_users}"
     )
-
-@app.on(events.NewMessage(pattern=r"^/ban (\d+)$"))
-@check_fsub
-async def ban_user(event):
-    user_id = event.sender_id
-    if event.sender_id != OWNER_ID:
-        return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
-
-    user_id = int(event.pattern_match.group(1))
-    banned_users_collection.insert_one({"user_id": user_id})
-    await event.reply(f"**✅ ᴜsᴇʀ {user_id} ʜᴀs ʙᴇᴇɴ ʙᴀɴɴᴇᴅ.**")
-
-@app.on(events.NewMessage(pattern=r"^/unban (\d+)$"))
-@check_fsub
-async def unban_user(event):
-    user_id = event.sender_id
-    if event.sender_id != OWNER_ID:
-        return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
-
-    user_id = int(event.pattern_match.group(1))
-    banned_users_collection.delete_one({"user_id": user_id})
-    await event.reply(f"**✅ ᴜsᴇʀ {user_id} ʜᴀs ʙᴇᴇɴ ʀᴇᴍᴏᴠᴇᴅ ғʀᴏᴍ ʙᴀɴ.**")
 
 @app.on(events.NewMessage(pattern=r"^/(broadcast|gcast)( .*)?$", func=lambda e: e.is_private))
 @check_fsub
@@ -486,6 +466,28 @@ async def broadcast(event):
         f"**❌ ғᴀɪʟᴇᴅ:** {failed}"
     )
 
+@app.on(events.NewMessage(pattern=r"^/ban (\d+)$", func=lambda e: e.is_private))
+@check_fsub
+async def ban_user(event):
+    user_id = event.sender_id
+    if event.sender_id != OWNER_ID:
+        return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
+
+    user_id = int(event.pattern_match.group(1))
+    banned_users_collection.insert_one({"user_id": user_id})
+    await event.reply(f"**✅ ᴜsᴇʀ {user_id} ʜᴀs ʙᴇᴇɴ ʙᴀɴɴᴇᴅ.**")
+
+@app.on(events.NewMessage(pattern=r"^/unban (\d+)$", func=lambda e: e.is_private))
+@check_fsub
+async def unban_user(event):
+    user_id = event.sender_id
+    if event.sender_id != OWNER_ID:
+        return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
+
+    user_id = int(event.pattern_match.group(1))
+    banned_users_collection.delete_one({"user_id": user_id})
+    await event.reply(f"**✅ ᴜsᴇʀ {user_id} ʜᴀs ʙᴇᴇɴ ᴜɴᴀʙɴᴇᴅ.**")
+
 @app.on(events.NewMessage(func=lambda e: e.is_private))
 async def check_ban(event):
     user_id = event.sender_id
@@ -497,45 +499,44 @@ async def handle_new_message(event):
     if event.is_private:
         await add_user(event.sender_id)  # Add user to database on any private message
     elif event.is_group:
-        await add_group(event.chat_id)  # Add group to database if not already added
+        await add_group(event.chat_id)
 
+# Update check_fsub_handler to include owner fsub check for groups
 @app.on(events.NewMessage)
 async def check_fsub_handler(event):
-    # Skip if already checked by decorator
     if hasattr(event, '_fsub_checked'):
         return
         
     user_id = event.sender_id
+    
+    # First check owner's force sub for both private and group chats
+    missing_owner_subs = await check_owner_fsub(user_id)
+    if missing_owner_subs is not True:
+        buttons = []
+        for channel in missing_owner_subs:
+            if hasattr(channel, 'username') and channel.username:
+                buttons.append([Button.url(f"Join {channel.title}", f"https://t.me/{channel.username}")])
+            else:
+                try:
+                    invite = await app(ExportChatInviteRequest(channel.id))
+                    buttons.append([Button.url(f"Join {channel.title}", invite.link)])
+                except:
+                    continue
 
-    # Handle private chats
-    if event.is_private:
-        missing_subs = await check_owner_fsub(user_id)
+        await event.reply(
+            "**⚠️ ᴀᴄᴄᴇss ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
+            "**ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
+            "**ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴊᴏɪɴ**\n"
+            "**ᴛʜᴇɴ ᴛʀʏ ᴀɢᴀɪɴ!**",
+            buttons=buttons
+        )
+        try:
+            await event.delete()
+        except:
+            pass
+        return
 
-        if missing_subs is True:
-            return
-
-        if missing_subs:
-            buttons = []
-            for channel in missing_subs:
-                if hasattr(channel, 'username') and channel.username:
-                    buttons.append([Button.url(f"Join {channel.title}", f"https://t.me/{channel.username}")])
-                else:
-                    try:
-                        invite = await app(ExportChatInviteRequest(channel.id))
-                        buttons.append([Button.url(f"Join {channel.title}", invite.link)])
-                    except:
-                        continue
-
-            await event.reply(
-                "**⚠️ ᴀᴄᴄᴇss ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
-                "**ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
-                "**ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴊᴏɪɴ**\n"
-                "**ᴛʜᴇɴ ᴛʀʏ ᴀɢᴀɪɴ!**",
-                buttons=buttons
-            )
-            return
-
-    # Handle group chats
+    # Handle group chats force sub check
     if event.is_group:
         chat_id = event.chat_id
         forcesub_data = forcesub_collection.find_one({"chat_id": chat_id})
