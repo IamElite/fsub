@@ -114,11 +114,11 @@ def check_fsub(func):
                 buttons = []
                 for channel in missing_owner_subs:
                     if hasattr(channel, 'username') and channel.username:
-                        buttons.append([Button.url(f"Join {channel.title}", f"https://t.me/{channel.username}")])
+                        buttons.append([Button.url("Join", f"https://t.me/{channel.username}")])
                     else:
                         try:
                             invite = await app(ExportChatInviteRequest(channel.id))
-                            buttons.append([Button.url(f"Join {channel.title}", invite.link)])
+                            buttons.append([Button.url("Join", invite.link)])
                         except:
                             continue
                 await event.reply(
@@ -126,7 +126,7 @@ def check_fsub(func):
                     "**ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
                     "**ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴊᴏɪɴ**\n"
                     "**ᴛʜᴇɴ ᴛʀʏ ᴀɢᴀɪɴ!**",
-                    buttons=buttons if buttons else None
+                    buttons=buttons
                 )
                 return
         return await func(event)
