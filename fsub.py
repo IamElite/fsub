@@ -126,7 +126,7 @@ def check_fsub(func):
                     "**ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
                     "**ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴊᴏɪɴ**\n"
                     "**ᴛʜᴇɴ ᴛʀʏ ᴀɢᴀɪɴ!**",
-                    buttons=buttons
+                    buttons=buttons if buttons else None
                 )
                 return
         return await func(event)
