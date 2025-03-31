@@ -142,6 +142,24 @@ def check_fsub(func):
         return await func(event)
     return wrapper
 
+# Add this function near the top with other utility functions
+async def is_command_for_me(event):
+    """Check if command is meant for this bot"""
+    try:
+        # Get bot's username
+        me = await app.get_me()
+        bot_username = me.username
+        
+        # Extract command and target bot from message
+        parts = event.text.split('@', 1)
+        if len(parts) > 1:
+            target_bot = parts[1].strip().lower()
+            return target_bot == bot_username.lower()
+        return True  # No bot username specified, respond to command
+    except Exception as e:
+        logger.error(f"Error checking command target: {e}")
+        return True
+
 @app.on(events.ChatAction)
 async def handle_added_to_chat(event):
     # Debugging: Print available attributes of the event object
@@ -175,6 +193,8 @@ async def handle_added_to_chat(event):
 @app.on(events.NewMessage(pattern=r"^/start(?:@\w+)?$"))
 @check_fsub
 async def start(event):
+    if not await is_command_for_me(event):
+        return
     user_id = event.sender_id
     await add_user(user_id)  # Add user to the database
     user = await event.get_sender()
@@ -197,6 +217,8 @@ async def start(event):
 @app.on(events.NewMessage(pattern=r"^/help(?:@\w+)?$"))
 @check_fsub
 async def help(event):
+    if not await is_command_for_me(event):
+        return
     user_id = event.sender_id
     await event.reply(
         "**📖 ʜᴇʟᴘ ᴍᴇɴᴜ:**\n\n"
@@ -226,9 +248,11 @@ async def is_admin_or_owner(chat_id, user_id):
         logger.error(f"Error checking admin status: {e}")
         return False
 
-@app.on(events.NewMessage(pattern=r"^/set( .+)?$", func=lambda e: e.is_group))
+@app.on(events.NewMessage(pattern=r"^/set(?:@\w+)?( .+)?$", func=lambda e: e.is_group))
 @check_fsub
 async def set_forcesub(event):
+    if not await is_command_for_me(event):
+        return
     chat_id = event.chat_id
     user_id = event.sender_id
 
@@ -297,9 +321,11 @@ async def set_forcesub(event):
     else:
         await event.reply(f"**🎉 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ sᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n{channel_list}")
 
-@app.on(events.NewMessage(pattern=r"^/fsub$", func=lambda e: e.is_group))
+@app.on(events.NewMessage(pattern=r"^/fsub(?:@\w+)?$", func=lambda e: e.is_group))
 @check_fsub
 async def manage_forcesub(event):
+    if not await is_command_for_me(event):
+        return
     try:
         chat_id = event.chat_id
         user_id = event.sender_id
@@ -380,9 +406,11 @@ async def toggle_forcesub(event):
         logger.error(f"Error in toggle_forcesub: {str(e)}")
         await event.answer("**❌ An error occurred while processing your request.**", alert=True)
 
-@app.on(events.NewMessage(pattern=r"^/reset$", func=lambda e: e.is_group))
+@app.on(events.NewMessage(pattern=r"^/reset(?:@\w+)?$", func=lambda e: e.is_group))
 @check_fsub
 async def reset_forcesub(event):
+    if not await is_command_for_me(event):
+        return
     chat_id = event.chat_id
     user_id = event.sender_id
 
@@ -397,6 +425,8 @@ async def reset_forcesub(event):
 @app.on(events.NewMessage(pattern=r"^/stats(?:@\w+)?$"))
 @check_fsub
 async def stats(event):
+    if not await is_command_for_me(event):
+        return
     user_id = event.sender_id
     if event.sender_id != OWNER_ID:
         return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
@@ -414,6 +444,8 @@ async def stats(event):
 @app.on(events.NewMessage(pattern=r"^/ban(?:@\w+)? (\d+)$"))
 @check_fsub
 async def ban_user(event):
+    if not await is_command_for_me(event):
+        return
     user_id = event.sender_id
     if event.sender_id != OWNER_ID:
         return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
@@ -425,6 +457,8 @@ async def ban_user(event):
 @app.on(events.NewMessage(pattern=r"^/unban(?:@\w+)? (\d+)$"))
 @check_fsub
 async def unban_user(event):
+    if not await is_command_for_me(event):
+        return
     user_id = event.sender_id
     if event.sender_id != OWNER_ID:
         return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
@@ -436,6 +470,8 @@ async def unban_user(event):
 @app.on(events.NewMessage(pattern=r"^/(broadcast|gcast)(?:@\w+)?( .*)?$"))
 @check_fsub
 async def broadcast(event):
+    if not await is_command_for_me(event):
+        return
     if event.sender_id != OWNER_ID:
         return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
 
