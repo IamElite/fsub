@@ -393,7 +393,8 @@ async def reset_forcesub(event):
     forcesub_collection.delete_one({"chat_id": chat_id})
     await event.reply("**✅ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ʜᴀs ʙᴇᴇɴ ʀᴇsᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ.**")
 
-@app.on(events.NewMessage(pattern=r"^/stats$", func=lambda e: e.is_private))
+# Update owner command patterns to include optional bot username
+@app.on(events.NewMessage(pattern=r"^/stats(?:@\w+)?$"))
 @check_fsub
 async def stats(event):
     user_id = event.sender_id
@@ -410,7 +411,29 @@ async def stats(event):
         f"**➲ ʙᴀɴɴᴇᴅ ᴜsᴇʀs:** {banned_users}"
     )
 
-@app.on(events.NewMessage(pattern=r"^/(broadcast|gcast)( .*)?$", func=lambda e: e.is_private))
+@app.on(events.NewMessage(pattern=r"^/ban(?:@\w+)? (\d+)$"))
+@check_fsub
+async def ban_user(event):
+    user_id = event.sender_id
+    if event.sender_id != OWNER_ID:
+        return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
+
+    user_id = int(event.pattern_match.group(1))
+    banned_users_collection.insert_one({"user_id": user_id})
+    await event.reply(f"**✅ ᴜsᴇʀ {user_id} ʜᴀs ʙᴇᴇɴ ʙᴀɴɴᴇᴅ.**")
+
+@app.on(events.NewMessage(pattern=r"^/unban(?:@\w+)? (\d+)$"))
+@check_fsub
+async def unban_user(event):
+    user_id = event.sender_id
+    if event.sender_id != OWNER_ID:
+        return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
+
+    user_id = int(event.pattern_match.group(1))
+    banned_users_collection.delete_one({"user_id": user_id})
+    await event.reply(f"**✅ ᴜsᴇʀ {user_id} ʜᴀs ʙᴇᴇɴ ᴜɴᴀʙɴᴇᴅ.**")
+
+@app.on(events.NewMessage(pattern=r"^/(broadcast|gcast)(?:@\w+)?( .*)?$"))
 @check_fsub
 async def broadcast(event):
     if event.sender_id != OWNER_ID:
@@ -465,28 +488,6 @@ async def broadcast(event):
         f"**📌 ᴘɪɴɴᴇᴅ:** {pinned}\n"
         f"**❌ ғᴀɪʟᴇᴅ:** {failed}"
     )
-
-@app.on(events.NewMessage(pattern=r"^/ban (\d+)$", func=lambda e: e.is_private))
-@check_fsub
-async def ban_user(event):
-    user_id = event.sender_id
-    if event.sender_id != OWNER_ID:
-        return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
-
-    user_id = int(event.pattern_match.group(1))
-    banned_users_collection.insert_one({"user_id": user_id})
-    await event.reply(f"**✅ ᴜsᴇʀ {user_id} ʜᴀs ʙᴇᴇɴ ʙᴀɴɴᴇᴅ.**")
-
-@app.on(events.NewMessage(pattern=r"^/unban (\d+)$", func=lambda e: e.is_private))
-@check_fsub
-async def unban_user(event):
-    user_id = event.sender_id
-    if event.sender_id != OWNER_ID:
-        return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
-
-    user_id = int(event.pattern_match.group(1))
-    banned_users_collection.delete_one({"user_id": user_id})
-    await event.reply(f"**✅ ᴜsᴇʀ {user_id} ʜᴀs ʙᴇᴇɴ ᴜɴᴀʙɴᴇᴅ.**")
 
 @app.on(events.NewMessage(func=lambda e: e.is_private))
 async def check_ban(event):
