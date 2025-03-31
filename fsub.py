@@ -212,7 +212,195 @@ async def help(event):
         "**/fsub** - ᴛᴏ ᴍᴀɴᴀɢᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ.\n"
         "**/reset** - ᴛᴏ ʀᴇsᴇᴛ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ.\n\n"
         "**➲ ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜᴇsᴇ ᴄᴏᴍᴍᴀɴᴅs.**"
+            )
+
+async def is_admin_or_owner(chat_id, user_id):
+    try:
+        member = await app.get_permissions(chat_id, user_id)
+        return member.is_admin or member.is_creator or user_id == OWNER_ID
+    except ChatAdminRequiredError:
+        return False
+    except Exception as e:
+        logger.error(f"Error checking admin status: {e}")
+        return False
+
+@app.on(events.NewMessage(pattern=r"^/set( .+)?$", func=lambda e: e.is_group))
+async def set_forcesub(event):
+    chat_id = event.chat_id
+    user_id = event.sender_id
+
+    if not await is_admin_or_owner(chat_id, user_id):
+        return await event.reply("**ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
+
+    command = event.pattern_match.group(1)
+    if not command:
+        return await event.reply("**ᴜsᴀɢᴇ: /set <ᴄʜᴀɴɴᴇʟ ᴜsᴇʀɴᴀᴍᴇ ᴏʀ ɪᴅ ᴏʀ ʟɪɴᴋ> (ᴜᴘ ᴛᴏ 4)**")
+
+    channels = command.strip().split()
+    if len(channels) > 4:
+        return await event.reply("**🚫 ʏᴏᴜ ᴄᴀɴ ᴏɴʟʏ ᴀᴅᴅ ᴜᴘ ᴛᴏ 4 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴs.**")
+
+    fsub_data = []
+    for channel_input in channels:
+        try:
+            if channel_input.startswith("https://t.me/"):
+                channel_input = channel_input.replace("https://t.me/", "")
+
+            # Attempt to get entity as integer ID first
+            try:
+                channel_id = int(channel_input)
+                channel_entity = await app.get_entity(channel_id)
+            except ValueError:
+                # If not an integer, try as username
+                channel_entity = await app.get_entity(channel_input)
+                channel_id = channel_entity.id
+            
+            channel_info = await app(GetFullChannelRequest(channel_entity))
+            channel_title = channel_info.chats[0].title
+
+            if channel_info.chats[0].username:
+                channel_username = f"@{channel_info.chats[0].username}"
+                channel_link = f"https://t.me/{channel_info.chats[0].username}"
+            else:
+                invite = await app(ExportChatInviteRequest(channel_id))
+                channel_username = invite.link
+                channel_link = invite.link
+
+            fsub_data.append({"id": channel_id, "username": channel_username, "title": channel_title, "link": channel_link})
+        except Exception as e:
+            logger.error(f"Error fetching channel info for {channel_input}: {e}")
+            return await event.reply(f"**🚫 ғᴀɪʟᴇᴅ ᴛᴏ ғᴇᴛᴄʜ ᴅᴀᴛᴀ ғᴏʀ {channel_input}.**")
+
+    forcesub_collection.update_one(
+        {"chat_id": chat_id},
+        {"$set": {"channels": fsub_data, "enabled": True}},
+        upsert=True
     )
+
+    set_by_user = f"@{event.sender.username}" if event.sender.username else event.sender.first_name
+
+    channel_list = "\n".join([f"**{c['title']}** ({c['username']})" for c in fsub_data])
+
+    if len(fsub_data) == 1:
+        channel_info = fsub_data[0]
+        await event.reply(
+            f"**🎉 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ sᴇᴛ ᴛᴏ** [{channel_info['title']}]({channel_info['username']}) **ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ.**\n\n"
+            f"**🆔 ᴄʜᴀɴɴᴇʟ ɪᴅ:** `{channel_info['id']}`\n"
+            f"**🖇️ ᴄʜᴀɴɴᴇʟ ʟɪɴᴋ:** [ɢᴇᴛ ʟɪɴᴋ]({channel_info['link']})\n"
+            f"**👤 sᴇᴛ ʙʏ:** {set_by_user}"
+        )
+    else:
+        await event.reply(f"**🎉 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ sᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n{channel_list}")
+
+@app.on(events.NewMessage(pattern=r"^/fsub$", func=lambda e: e.is_group))
+async def manage_forcesub(event):
+    chat_id = event.chat_id
+    user_id = event.sender_id
+
+    if not await is_admin_or_owner(chat_id, user_id):
+        return await event.reply("**ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
+
+    forcesub_data = forcesub_collection.find_one({"chat_id": chat_id})
+    if not forcesub_data or not forcesub_data.get("channels"):
+        return await event.reply("**🚫 ɴᴏ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ɪs sᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ.**")
+
+    channel_list = "\n".join([f"**{c['title']}** ({c['username']})" for c in forcesub_data["channels"]])
+
+    is_enabled = forcesub_data.get("enabled", True)
+
+    buttons = [
+        [Button.inline("ON" if not is_enabled else "OFF", data=f"fsub_{'on' if not is_enabled else 'off'}_{chat_id}")]
+    ]
+
+    await event.reply(
+        f"**📊 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n{channel_list}\n\n**ᴄᴜʀʀᴇɴᴛ sᴛᴀᴛᴜs:** {'Enabled' if is_enabled else 'Disabled'}",
+        buttons=buttons
+    )
+
+@app.on(events.CallbackQuery(pattern=r"fsub_(on|off)_(\d+)"))
+async def toggle_forcesub(event):
+    action, chat_id = event.pattern_match.group(1), int(event.pattern_match.group(2))
+    user_id = event.sender_id
+
+    if not await is_admin_or_owner(chat_id, user_id):
+        return await event.answer("ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.", alert=True)
+
+    forcesub_data = forcesub_collection.find_one({"chat_id": chat_id})
+    if not forcesub_data:
+        return await event.answer("ɴᴏ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ɪs sᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ.", alert=True)
+
+    if action == "on":
+        forcesub_collection.update_one({"chat_id": chat_id}, {"$set": {"enabled": True}})
+        await event.edit("**✅ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ʜᴀs ʙᴇᴇɴ ᴇɴᴀʙʟᴇᴅ.**")
+    elif action == "off":
+        forcesub_collection.update_one({"chat_id": chat_id}, {"$set": {"enabled": False}})
+        await event.edit("**❌ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ʜᴀs ʙᴇᴇɴ ᴅɪsᴀʙʟᴇᴅ.**")
+
+@app.on(events.NewMessage(pattern=r"^/reset$", func=lambda e: e.is_group))
+async def reset_forcesub(event):
+    chat_id = event.chat_id
+    user_id = event.sender_id
+
+    if not await is_admin_or_owner(chat_id, user_id):
+        return await event.reply("**ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
+
+    forcesub_collection.delete_one({"chat_id": chat_id})
+    await event.reply("**✅ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ʜᴀs ʙᴇᴇɴ ʀᴇsᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ.**")
+
+@app.on(events.NewMessage(func=lambda e: e.is_group))
+async def enforce_forcesub(event):
+    chat_id = event.chat_id
+    user_id = event.sender_id
+
+    forcesub_data = forcesub_collection.find_one({"chat_id": chat_id})
+    if not forcesub_data or not forcesub_data.get("channels") or not forcesub_data.get("enabled", True):
+        return
+
+    is_member = True
+    for channel in forcesub_data["channels"]:
+        try:
+            if isinstance(channel["id"], int):
+                await app(GetParticipantRequest(channel=channel["id"], participant=user_id))
+            else:
+                channel_entity = await app.get_entity(channel["id"])
+                await app(GetParticipantRequest(channel=channel_entity, participant=user_id))
+        except UserNotParticipantError:
+            is_member = False
+            break
+        except Exception as e:
+            if "Could not find the input entity" in str(e):
+                logger.warning(f"Could not check user {user_id} in channel {channel['id']}: {e}")
+                is_member = False
+                break
+            else:
+                logger.error(f"An error occurred while checking user participation: {e}")
+                return
+
+    if not is_member:
+        try:
+            await event.delete()
+        except:
+            pass
+
+        try:
+            await event.reply(
+                f"**👋 ʜᴇʟʟᴏ {event.sender.first_name},**\n\n"
+                f"**ʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ᴊᴏɪɴ ᴛʜᴇ ғᴏʟʟᴏᴡɪɴɢ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n"
+                f"{chr(10).join([f'๏ [{c['title']}]({c['username']})' for c in forcesub_data['channels']])}",
+                buttons=[[Button.url(f"๏ ᴊᴏɪɴ {c['title']} ๏", url=c['link']) for c in forcesub_data['channels']]]
+            )
+        except ButtonUrlInvalidError:
+            logger.error(f"Button URL invalid for channel: {channel['username']}")
+            await event.reply(
+                f"**👋 ʜᴇʟʟᴏ {event.sender.first_name},**\n\n"
+                f"**ʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ᴊᴏɪɴ ᴛʜᴇ channel to send messages in this group.**\n"
+                f"**Channel title:** {channel['title']}\n"
+                f"**Channel username or link:** {channel['username']}"
+            )
+        except Exception as e:
+            logger.error(f"An error occurred while sending the force sub message: {e}")
+        return
+
 
 @app.on(events.NewMessage(pattern=r"^/stats$"))
 @check_fsub
