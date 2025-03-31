@@ -575,7 +575,7 @@ async def check_fsub_handler(event):
                     f"**👋 ʜᴇʟʟᴏ {event.sender.first_name},**\n\n"
                     f"**ʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ᴊᴏɪɴ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n"
                     f"{chr(10).join([f'๏ [{c['title']}]({c['username']})' for c in forcesub_data['channels']])}",
-                    buttons=[[Button.url(f"๏ ᴊᴏɪɴ {c['title']} ๏", url=c['link']) for c in forcesub_data['channels']]]
+                    buttons=[[Button.url(f"๏ ᴊᴏɪɴ {c['title']} ๏", url=c['link'])] for c in forcesub_data['channels']]
                 )
             except ButtonUrlInvalidError:
                 logger.error(f"Button URL invalid for channel: {channel['username']}")
