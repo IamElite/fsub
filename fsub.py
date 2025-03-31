@@ -113,21 +113,33 @@ def check_fsub(func):
             if missing_owner_subs is not True:
                 buttons = []
                 for channel in missing_owner_subs:
-                    if hasattr(channel, 'username') and channel.username:
-                        buttons.append([Button.url("Join", f"https://t.me/{channel.username}")])
-                    else:
-                        try:
+                    try:
+                        if hasattr(channel, 'username') and channel.username:
+                            buttons.append([Button.url("Join", f"https://t.me/{channel.username}")])
+                        else:
                             invite = await app(ExportChatInviteRequest(channel.id))
-                            buttons.append([Button.url("Join", invite.link)])
-                        except:
-                            continue
-                await event.reply(
-                    "**⚠️ ᴀᴄᴄᴇss ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
-                    "**ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
-                    "**ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴊᴏɪɴ**\n"
-                    "**ᴛʜᴇɴ ᴛʀʏ ᴀɢᴀɪɴ!**",
-                    buttons=buttons
-                )
+                            if invite and invite.link:
+                                buttons.append([Button.url("Join", invite.link)])
+                    except Exception as e:
+                        logger.error(f"Error creating button for channel {getattr(channel, 'id', 'unknown')}: {e}")
+                        continue
+                
+                # Only send message with buttons if we have valid buttons
+                if buttons:
+                    await event.reply(
+                        "**⚠️ ᴀᴄᴄᴇss ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
+                        "**ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
+                        "**ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴊᴏɪɴ**\n"
+                        "**ᴛʜᴇɴ ᴛʀʏ ᴀɢᴀɪɴ!**",
+                        buttons=buttons
+                    )
+                else:
+                    # Fallback message if no valid buttons could be created
+                    await event.reply(
+                        "**⚠️ ᴀᴄᴄᴇss ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
+                        "**ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
+                        "**ᴘʟᴇᴀsᴇ ᴄᴏɴᴛᴀᴄᴛ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ.**"
+                    )
                 return
         return await func(event)
     return wrapper
@@ -508,7 +520,7 @@ async def broadcast(event):
             failed += 1
 
     await progress_msg.edit(
-        f"**✅ ʙʀᴏᴀᴅᴄᴀsᴛ ᴄᴏᴍᴘʟᴇᴛᴇᴅ.**\n\n"
+        f"**✅ ʙʀᴏᴀᴅᴄᴀsᴛ ᴄᴏᴍᴍʀᴇᴛᴇᴅ.**\n\n"
         f"**👥 ɢʀᴏᴜᴘs sᴇɴᴛ:** {sent_groups}\n"
         f"**🧑‍💻 ᴜsᴇʀs sᴇɴᴛ:** {sent_users}\n"
         f"**📌 ᴘɪɴɴᴇᴅ:** {pinned}\n"
@@ -545,6 +557,7 @@ async def check_fsub_handler(event):
             return
 
         is_member = True
+        non_member_channel = None
         for channel in forcesub_data["channels"]:
             try:
                 if isinstance(channel["id"], int):
@@ -554,11 +567,13 @@ async def check_fsub_handler(event):
                     await app(GetParticipantRequest(channel=channel_entity, participant=user_id))
             except UserNotParticipantError:
                 is_member = False
+                non_member_channel = channel
                 break
             except Exception as e:
                 if "Could not find the input entity" in str(e):
                     logger.warning(f"Could not check user {user_id} in channel {channel['id']}: {e}")
                     is_member = False
+                    non_member_channel = channel
                     break
                 else:
                     logger.error(f"An error occurred while checking user participation: {e}")
@@ -567,24 +582,33 @@ async def check_fsub_handler(event):
         if not is_member:
             try:
                 await event.delete()
-            except:
-                pass
+            except Exception as e:
+                logger.error(f"Could not delete message: {e}")
 
             try:
-                await event.reply(
-                    f"**👋 ʜᴇʟʟᴏ {event.sender.first_name},**\n\n"
-                    f"**ʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ᴊᴏɪɴ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n"
-                    f"{chr(10).join([f'๏ [{c['title']}]({c['username']})' for c in forcesub_data['channels']])}",
-                    buttons=[[Button.url(f"๏ ᴊᴏɪɴ {c['title']} ๏", url=c['link'])] for c in forcesub_data['channels']]
-                )
-            except ButtonUrlInvalidError:
-                logger.error(f"Button URL invalid for channel: {channel['username']}")
-                await event.reply(
-                    f"**👋 ʜᴇʟʟᴏ {event.sender.first_name},**\n\n"
-                    f"**ʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ᴊᴏɪɴ ᴛʜᴇ channel to send messages in this group.**\n"
-                    f"**Channel title:** {channel['title']}\n"
-                    f"**Channel username or link:** {channel['username']}"
-                )
+                # Create buttons with proper error handling
+                buttons = []
+                for c in forcesub_data['channels']:
+                    try:
+                        if c['link'] and c['title']:
+                            buttons.append([Button.url(f"๏ ᴊᴏɪɴ {c['title']} ๏", c['link'])])
+                    except Exception as e:
+                        logger.error(f"Error creating button for channel {c.get('id', 'unknown')}: {e}")
+                
+                # Only send message with buttons if we have valid buttons
+                if buttons:
+                    await event.reply(
+                        f"**👋 ʜᴇʟʟᴏ {event.sender.first_name},**\n\n"
+                        f"**ʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ᴊᴏɪɴ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n"
+                        f"{chr(10).join([f'๏ [{c['title']}]({c['link']})' for c in forcesub_data['channels'] if c.get('title') and c.get('link')])}",
+                        buttons=buttons
+                    )
+                else:
+                    # Fallback message if no valid buttons could be created
+                    await event.reply(
+                        f"**👋 ʜᴇʟʟᴏ {event.sender.first_name},**\n\n"
+                        f"**ʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ᴊᴏɪɴ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ.**"
+                    )
             except Exception as e:
                 logger.error(f"An error occurred while sending the force sub message: {e}")
             return
@@ -597,7 +621,7 @@ async def startup_notification():
         
         await app.send_message(
             LOGGER_ID,
-            "**✅ ʙᴏᴛ ʜᴀs sᴛᴀʀᴛᴇᴅ sᴜᴄᴄᴇssғᴜʟʟʏ!**\n\n"
+            "**✅ ʙᴏᴛ ʜᴀs sᴛᴀʀᴛᴇᴅ sᴜᴄᴄᴇssғᴜʀʟʏ!**\n\n"
             f"**ʙᴏᴛ ɪɴғᴏ:**\n"
             f"**➲ ᴏᴡɴᴇʀ ɪᴅ:** `{OWNER_ID}`\n"
             f"**➲ ʟᴏɢɢᴇʀ ɪᴅ:** `{LOGGER_ID}`\n"
