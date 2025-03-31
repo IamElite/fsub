@@ -146,8 +146,8 @@ def check_fsub(func):
                     await event.reply(
                         "**⚠️ ᴀᴄᴄᴇss ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
                         "**ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
-                        "**ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴊᴏɪɴ**\n"
-                        "**ᴛʜᴇɴ ᴄʟɪᴄᴋ 🔄 ᴛʀʏ ᴀɢᴀɪɴ**",
+                        "**ᴄʟɪᴄᴛ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴊᴏɪɴ**\n"
+                        "**ᴛʜᴇɴ ᴄʟɪᴄᴛ 🔄 ᴛʀʏ ᴀɢᴀɪɴ**",
                         buttons=buttons + [[Button.inline("🔄 ᴛʀʏ ᴀɢᴀɪɴ", "check_fsub")]]
                     )
                 else:
@@ -202,17 +202,27 @@ async def check_fsub_callback(event):
                 logger.error(f"Error creating button for channel {getattr(channel, 'id', 'unknown')}: {e}")
                 continue
         
-        await event.answer("❌ You need to join all channels to use the bot.", alert=True)
-        
+        # Only show alert if there are still channels to join
         if buttons:
+            await event.answer("❌ You need to join all channels to use the bot.", alert=True)
+            
             await event.edit(
-                "**⚠️ ᴀᴄᴄᴇss sᴛɪʟʟ ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
+                "**⚠️ ᴀᴄᴄᴇss sᴛɪʟʀ ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
                 "**ʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ᴊᴏɪɴ ᴀʟʟ ᴄʜᴀɴɴᴇʟs ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
                 "**ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴊᴏɪɴ**\n"
                 "**ᴛʜᴇɴ ᴄʟɪᴄᴋ 🔄 ᴛʀʏ ᴀɢᴀɪɴ!**",
                 buttons=buttons + [[Button.inline("🔄 ᴛʀʏ ᴀɢᴀɪɴ", "check_fsub")]]
-             )   
-
+            )
+        else:
+            # If no buttons could be created but missing_owner_subs is not True,
+            # there might be an error in channel retrieval. Grant access anyway.
+            await event.answer("✅ Access granted! You can now use the bot.", alert=True)
+            await event.edit(
+                "**✅ ᴀᴄᴄᴇss ɢʀᴀɴᴛᴇᴅ!**\n\n"
+                "**ʏᴏᴜ ᴄᴀɴ ɴᴏᴡ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ.**\n\n"
+                "**ᴛʏᴘᴇ /start ᴛᴏ sᴛᴀʀᴛ ᴜsɪɴɢ ᴛʜᴇ ʙᴏᴛ.**"
+            )
+            
 # Add this function near the top with other utility functions
 async def is_command_for_me(event):
     """Check if command is meant for this bot"""
