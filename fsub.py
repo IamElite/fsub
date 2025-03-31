@@ -63,6 +63,18 @@ async def get_all_groups():
             pass
     return groups
 
+# User verification functions
+def is_user_verified(user_id):
+    current_time = time.time()
+    if user_id in verified_users and current_time - verified_users[user_id] < CACHE_EXPIRY:
+        return True
+    if user_id in verified_users:
+        del verified_users[user_id]
+    return False
+
+def mark_user_verified(user_id):
+    verified_users[user_id] = time.time()
+
 # Parse force sub channels/groups
 FSUB_IDS = []
 if FSUB:
@@ -91,16 +103,12 @@ async def check_owner_fsub(user_id):
                 await app(GetParticipantRequest(channel=channel_entity, participant=user_id))
         except UserNotParticipantError:
             try:
-                if isinstance(channel_id, int):
-                    channel = await app.get_entity(channel_id)
-                else:
-                    channel = await app.get_entity(channel_id)
+                channel = await app.get_entity(channel_id)
                 
                 # Get more channel info for better button display
                 try:
                     channel_info = await app(GetFullChannelRequest(channel))
-                    channel_title = channel_info.chats[0].title
-                    channel.title = channel_title  # Add title attribute
+                    channel.title = channel_info.chats[0].title
                 except Exception as e:
                     logger.error(f"Error getting channel info: {e}")
                     channel.title = "Channel"  # Fallback title
@@ -108,58 +116,72 @@ async def check_owner_fsub(user_id):
                 missing_subs.append(channel)
             except Exception as e:
                 logger.error(f"Error getting channel entity: {e}")
-                continue
         except Exception as e:
             logger.error(f"Error checking user in channel {channel_id}: {e}")
+    
     return missing_subs
+
+# Create buttons for channels
+async def create_channel_buttons(channels):
+    buttons = []
+    for channel in channels:
+        try:
+            if hasattr(channel, 'username') and channel.username:
+                channel_title = getattr(channel, 'title', 'Channel')
+                buttons.append([Button.url(f"🔗 Join {channel_title}", f"https://t.me/{channel.username}")])
+            else:
+                try:
+                    invite = await app(ExportChatInviteRequest(channel.id))
+                    if invite and invite.link:
+                        channel_title = getattr(channel, 'title', 'Channel')
+                        buttons.append([Button.url(f"🔗 Join {channel_title}", invite.link)])
+                except Exception as e:
+                    logger.error(f"Error creating invite link: {e}")
+        except Exception as e:
+            logger.error(f"Error creating button for channel {getattr(channel, 'id', 'unknown')}: {e}")
+    
+    return buttons
 
 # Decorator to check force subscription compliance
 def check_fsub(func):
     async def wrapper(event):
         user_id = event.sender_id
         
+        # Skip check if user is already verified
+        if is_user_verified(user_id):
+            return await func(event)
+        
         # Check owner's force sub only for bot commands
         if event.text and event.text.startswith('/'):
             missing_owner_subs = await check_owner_fsub(user_id)
-            if missing_owner_subs is not True:
-                buttons = []
-                for channel in missing_owner_subs:
-                    try:
-                        if hasattr(channel, 'username') and channel.username:
-                            channel_title = getattr(channel, 'title', 'Channel')
-                            buttons.append([Button.url(f"🔗 Join {channel_title}", f"https://t.me/{channel.username}")])
-                        else:
-                            try:
-                                invite = await app(ExportChatInviteRequest(channel.id))
-                                if invite and invite.link:
-                                    channel_title = getattr(channel, 'title', 'Channel')
-                                    buttons.append([Button.url(f"🔗 Join {channel_title}", invite.link)])
-                            except Exception as e:
-                                logger.error(f"Error creating invite link: {e}")
-                                continue
-                    except Exception as e:
-                        logger.error(f"Error creating button for channel {getattr(channel, 'id', 'unknown')}: {e}")
-                        continue
-                
-                # Only send message with buttons if we have valid buttons
-                if buttons:
-                    await event.reply(
-                        "**⚠️ ᴀᴄᴄᴇss ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
-                        "**ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
-                        "**ᴄʟɪᴄᴛ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴊᴏɪɴ**\n"
-                        "**ᴛʜᴇɴ ᴄʟɪᴄᴛ 🔄 ᴛʀʏ ᴀɢᴀɪɴ**",
-                        buttons=buttons + [[Button.inline("🔄 ᴛʀʏ ᴀɢᴀɪɴ", "check_fsub")]]
-                    )
-                else:
-                    # Fallback message if no valid buttons could be created
-                    await event.reply(
-                        "**⚠️ ᴀᴄᴄᴇss ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
-                        "**ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
-                        "**ᴍᴀɴᴀɢᴇ ᴛʜᴇ ᴄᴏɴᴛʀᴏʟ ᴏғ ᴛʜᴇ ʙᴏᴛ!**\n"
-                        "**ᴛʀʏ ᴀɢᴀɪɴ**",
-                        buttons=[[Button.inline("🔄 ᴛʀʏ ᴀɢᴀɪɴ", "check_fsub")]]
-                    )
-                return
+            
+            if missing_owner_subs is True:
+                # User has joined all channels
+                mark_user_verified(user_id)
+                return await func(event)
+            
+            # Create buttons for missing channels
+            buttons = await create_channel_buttons(missing_owner_subs)
+            
+            # Only send message with buttons if we have valid buttons
+            if buttons:
+                await event.reply(
+                    "**⚠️ ᴀᴄᴄᴇss ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
+                    "**ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
+                    "**ᴄʟɪᴄᴛ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴊᴏɪɴ**\n"
+                    "**ᴛʜᴇɴ ᴄʟɪᴄᴛ 🔄 ᴛʀʏ ᴀɢᴀɪɴ**",
+                    buttons=buttons + [[Button.inline("🔄 ᴛʀʏ ᴀɢᴀɪɴ", "check_fsub")]]
+                )
+            else:
+                # Fallback message if no valid buttons could be created
+                await event.reply(
+                    "**⚠️ ᴀᴄᴄᴇss ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
+                    "**ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
+                    "**ᴍᴀɴᴀɢᴇ ᴛʜᴇ ᴄᴏɴᴛʀᴏʟ ᴏғ ᴛʜᴇ ʙᴏᴛ!**\n"
+                    "**ᴛʀʏ ᴀɢᴀɪɴ**",
+                    buttons=[[Button.inline("🔄 ᴛʀʏ ᴀɢᴀɪɴ", "check_fsub")]]
+                )
+            return
         return await func(event)
     return wrapper
 
@@ -173,60 +195,33 @@ async def check_fsub_callback(event):
     
     if missing_owner_subs is True:
         # User has joined all channels
+        mark_user_verified(user_id)
         await event.answer("✅ Thank you for joining! You can now use the bot.", alert=True)
         # Edit the message to show success
         await event.edit(
             "**✅ ᴀᴄᴄᴇss ɢʀᴀɴᴛᴇᴅ!**\n\n"
-            "**ᴛʜᴀɴᴋ ʏᴏᴜ ғᴏʀ ᴊᴏɪɴɪɴɢ ᴛʜᴇ ʀᴇǫʀɪʀᴇᴅ ᴄʜᴀɴɴᴇʟs.**\n"
+            "**ᴛʜᴀɴᴋ ʏᴏᴜ ғᴏʀ ᴊᴏɪɴɪɴɢ ᴛʜᴇ ʀᴇǫᴜɪʀᴇᴅ ᴄʜᴀɴɴᴇʟs.**\n"
             "**ʏᴏᴜ ᴄᴀɴ ɴᴏᴡ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ.**\n\n"
-            "**ᴛʏᴘᴇ /start ᴛᴏ sᴛᴀʀᴛ ᴜsɪɴɢ ᴛʜᴇ ʙᴏᴛ.**"
+            "**ᴛʏᴍᴇ /start ᴛᴏ sᴛᴀʀᴛ ᴜsɪɴɢ ᴛʜᴇ ʙᴏᴛ.**"
         )
     else:
         # User still needs to join some channels
-        buttons = []
+        buttons = await create_channel_buttons(missing_owner_subs)
         
-        # Check if missing_owner_subs is a list and not empty
-        if isinstance(missing_owner_subs, list) and missing_owner_subs:
-            for channel in missing_owner_subs:
-                try:
-                    if hasattr(channel, 'username') and channel.username:
-                        channel_title = getattr(channel, 'title', 'Channel')
-                        buttons.append([Button.url(f"🔗 Join {channel_title}", f"https://t.me/{channel.username}")])
-                    else:
-                        try:
-                            invite = await app(ExportChatInviteRequest(channel.id))
-                            if invite and invite.link:
-                                channel_title = getattr(channel, 'title', 'Channel')
-                                buttons.append([Button.url(f"🔗 Join {channel_title}", invite.link)])
-                        except Exception as e:
-                            logger.error(f"Error creating invite link: {e}")
-                            continue
-                except Exception as e:
-                    logger.error(f"Error creating button for channel {getattr(channel, 'id', 'unknown')}: {e}")
-                    continue
+        # Only show alert if there are still channels to join
+        if buttons:
+            await event.answer("❌ You need to join all channels to use the bot.", alert=True)
             
-            # Only show alert if there are still channels to join
-            if buttons:
-                await event.answer("❌ You need to join all channels to use the bot.", alert=True)
-                
-                await event.edit(
-                    "**⚠️ ᴀᴄᴄᴇss sᴛɪʟʟ ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
-                    "**ʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ᴊᴏɪɴ ᴀʟʟ ᴄʜᴀɴɴᴇʟs ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
-                    "**ᴄʟɪᴄᴛ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴊᴏɪɴ**\n"
-                    "**ᴛʜᴇɴ ᴄʟɪᴄᴛ 🔄 ᴛʀʏ ᴀɢᴀɪɴ!**",
-                    buttons=buttons + [[Button.inline("🔄 ᴛʀʏ ᴀɢᴀɪɴ", "check_fsub")]]
-                )
-            else:
-                # If no buttons could be created but missing_owner_subs is not empty,
-                # there might be an error in channel retrieval. Grant access anyway.
-                await event.answer("✅ Access granted! You can now use the bot.", alert=True)
-                await event.edit(
-                    "**✅ ᴀᴄᴄᴇss ɢʀᴀɴᴛᴇᴅ!**\n\n"
-                    "**ʏᴏᴜ ᴄᴀɴ ɴᴏᴡ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ.**\n\n"
-                    "**ᴛʏᴘᴇ /start ᴛᴏ sᴛᴀʀᴛ ᴜsɪɴɢ ᴛʜᴇ ʙᴏᴛ.**"
-                )
+            await event.edit(
+                "**⚠️ ᴀᴄᴄᴇss sᴛɪʟʟ ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
+                "**ʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ᴊᴏɪɴ ᴀʟʟ ᴄʜᴀɴɴᴇʟs ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
+                "**ᴄʟɪᴄᴛ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴊᴏɪɴ**\n"
+                "**ᴛʜᴇɴ ᴄʟɪᴄᴛ 🔄 ᴛʀʏ ᴀɢᴀɪɴ!**",
+                buttons=buttons + [[Button.inline("🔄 ᴛʀʏ ᴀɢᴀɪɴ", "check_fsub")]]
+            )
         else:
-            # If missing_owner_subs is empty list or None, grant access
+            # If no buttons could be created, grant access anyway
+            mark_user_verified(user_id)
             await event.answer("✅ Access granted! You can now use the bot.", alert=True)
             await event.edit(
                 "**✅ ᴀᴄᴄᴇss ɢʀᴀɴᴛᴇᴅ!**\n\n"
