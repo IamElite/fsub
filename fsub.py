@@ -211,6 +211,7 @@ async def check_fsub_callback(event):
                 "**ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴊᴏɪɴ**\n"
                 "**ᴛʜᴇɴ ᴄʟɪᴄᴋ 🔄 ᴛʀʏ ᴀɢᴀɪɴ!**",
                 buttons=buttons + [[Button.inline("🔄 ᴛʀʏ ᴀɢᴀɪɴ", "check_fsub")]]
+            )
 
 # Add this function near the top with other utility functions
 async def is_command_for_me(event):
