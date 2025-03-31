@@ -107,38 +107,28 @@ def check_fsub(func):
     async def wrapper(event):
         user_id = event.sender_id
         
-        # Skip check for non-private chats or specific handlers
-        if not event.is_private or isinstance(event, events.CallbackQuery):
-            return await func(event)
-            
-        # Set a custom attribute to prevent duplicate checks
-        if hasattr(event, '_fsub_checked'):
-            return await func(event)
-        event._fsub_checked = True
-        
-        missing_subs = await check_owner_fsub(user_id)
-        if missing_subs is True:
-            return await func(event)
-            
-        if missing_subs:
-            buttons = []
-            for channel in missing_subs:
-                if hasattr(channel, 'username') and channel.username:
-                    buttons.append([Button.url(f"Join {channel.title}", f"https://t.me/{channel.username}")])
-                else:
-                    try:
-                        invite = await app(ExportChatInviteRequest(channel.id))
-                        buttons.append([Button.url(f"Join {channel.title}", invite.link)])
-                    except:
-                        continue
-            await event.reply(
-                "**⚠️ ᴀᴄᴄᴇss ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
-                "**ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
-                "**ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴊᴏɪɴ**\n"
-                "**ᴛʜᴇɴ ᴛʀʏ ᴀɢᴀɪɴ!**",
-                buttons=buttons
-            )
-            return
+        # Check owner's force sub only for bot commands
+        if event.text and event.text.startswith('/'):
+            missing_owner_subs = await check_owner_fsub(user_id)
+            if missing_owner_subs is not True:
+                buttons = []
+                for channel in missing_owner_subs:
+                    if hasattr(channel, 'username') and channel.username:
+                        buttons.append([Button.url(f"Join {channel.title}", f"https://t.me/{channel.username}")])
+                    else:
+                        try:
+                            invite = await app(ExportChatInviteRequest(channel.id))
+                            buttons.append([Button.url(f"Join {channel.title}", invite.link)])
+                        except:
+                            continue
+                await event.reply(
+                    "**⚠️ ᴀᴄᴄᴇss ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
+                    "**ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
+                    "**ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴊᴏɪɴ**\n"
+                    "**ᴛʜᴇɴ ᴛʀʏ ᴀɢᴀɪɴ!**",
+                    buttons=buttons
+                )
+                return
         return await func(event)
     return wrapper
 
@@ -546,34 +536,7 @@ async def check_fsub_handler(event):
         
     user_id = event.sender_id
     
-    # First check owner's force sub for both private and group chats
-    missing_owner_subs = await check_owner_fsub(user_id)
-    if missing_owner_subs is not True:
-        buttons = []
-        for channel in missing_owner_subs:
-            if hasattr(channel, 'username') and channel.username:
-                buttons.append([Button.url(f"Join {channel.title}", f"https://t.me/{channel.username}")])
-            else:
-                try:
-                    invite = await app(ExportChatInviteRequest(channel.id))
-                    buttons.append([Button.url(f"Join {channel.title}", invite.link)])
-                except:
-                    continue
-
-        await event.reply(
-            "**⚠️ ᴀᴄᴄᴇss ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
-            "**ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
-            "**ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴊᴏɪɴ**\n"
-            "**ᴛʜᴇɴ ᴛʀʏ ᴀɢᴀɪɴ!**",
-            buttons=buttons
-        )
-        try:
-            await event.delete()
-        except:
-            pass
-        return
-
-    # Handle group chats force sub check
+    # Only check group's force sub, not owner's force sub for regular messages
     if event.is_group:
         chat_id = event.chat_id
         forcesub_data = forcesub_collection.find_one({"chat_id": chat_id})
