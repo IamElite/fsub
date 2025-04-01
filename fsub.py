@@ -1,11 +1,9 @@
-import os
-import logging
+import os, logging, asyncio
+from motor.motor_asyncio import AsyncIOMotorClient
 from telethon import TelegramClient, events, Button
 from telethon.tl.functions.channels import GetParticipantRequest
 from telethon.tl.functions.messages import ExportChatInviteRequest
 from telethon.errors.rpcerrorlist import UserNotParticipantError
-from pymongo import MongoClient
-import asyncio
 
 # Logging configuration
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -24,7 +22,7 @@ FSUB = os.getenv("FSUB", "").strip()
 app = TelegramClient('bot', api_id=API_ID, api_hash=API_HASH)
 
 # MongoDB connection
-mongo_client = MongoClient(MONGO_URI)
+mongo_client = AsyncIOMotorClient(MONGO_URI)
 db = mongo_client.fsub
 users_collection = db["users"]
 groups_collection = db["groups"]
