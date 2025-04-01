@@ -1,4 +1,4 @@
-import os, logging, asyncio  # chat gpt
+import os, logging, asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 from telethon import TelegramClient, events, Button
 from telethon.tl.functions.channels import GetParticipantRequest, GetFullChannelRequest
@@ -133,40 +133,32 @@ def check_fsub(func):
         return await func(event)
     return wrapper
 
-# Add this function near the top with other utility functions
+# Utility function to check if command is meant for this bot
 async def is_command_for_me(event):
-    """Check if command is meant for this bot"""
     try:
-        # Get bot's username
         me = await app.get_me()
         bot_username = me.username
-        
-        # Extract command and target bot from message
         parts = event.text.split('@', 1)
         if len(parts) > 1:
             target_bot = parts[1].strip().lower()
             return target_bot == bot_username.lower()
-        return True  # No bot username specified, respond to command
+        return True
     except Exception as e:
         logger.error(f"Error checking command target: {e}")
         return True
 
 @app.on(events.ChatAction)
 async def handle_added_to_chat(event):
-    # Debugging: Print available attributes of the event object
-    print(dir(event))  # This will help identify the correct attribute
-
-    # Replace 'user_removed' with the correct attribute
+    print(dir(event))  # Debug: Print available attributes
     if hasattr(event, 'user_left') and event.user_left:
         me = await app.get_me()
         if event.user_id == me.id:
-            await remove_group(event.chat_id)  # Remove group when bot is removed
-
+            await remove_group(event.chat_id)
     if event.user_added:
         me = await app.get_me()
         if event.user_id == me.id:
             chat = await event.get_chat()
-            await add_group(chat.id)  # Add group to the database
+            await add_group(chat.id)
             if chat.username:
                 chat_link = f"https://t.me/{chat.username}"
             else:
@@ -179,17 +171,15 @@ async def handle_added_to_chat(event):
                 f"**ʟɪɴᴋ:** {chat_link}"
             )
 
-# Update start command pattern to include optional bot username
 @app.on(events.NewMessage(pattern=r"^/start(?:@\w+)?$"))
 @check_fsub
 async def start(event):
     if not await is_command_for_me(event):
         return
     user_id = event.sender_id
-    await add_user(user_id)  # Add user to the database
+    await add_user(user_id)
     user = await event.get_sender()
     user_id = user.id
-
     await app.send_message(
         LOGGER_ID,
         f"**🆕 ɴᴇᴡ ᴜsᴇʀ sᴛᴀʀᴛᴇᴅ ᴛʜᴇ ʙᴏᴛ**\n\n"
@@ -203,13 +193,11 @@ async def start(event):
         "**➲ ᴛʏᴘᴇ /help ғᴏʀ ᴍᴏʀᴇ ɪɴғᴏʀᴍᴀᴛɪᴏɴ.**"
     )
 
-# Update help command pattern to include optional bot username
 @app.on(events.NewMessage(pattern=r"^/help(?:@\w+)?$"))
 @check_fsub
 async def help(event):
     if not await is_command_for_me(event):
         return
-    user_id = event.sender_id
     await event.reply(
         "**📖 ʜᴇʟᴘ ᴍᴇɴᴜ:**\n\n"
         "**/set <ᴄʜᴀɴɴᴇʟ ᴜsᴇʀɴᴀᴍᴇ ᴏʀ ɪᴅ ᴏʀ ʟɪɴᴋ> (ᴜᴘ ᴛᴏ 4)** - ᴛᴏ sᴇᴛ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ғᴏʀ ᴀ ɢʀᴏᴜᴘ.\n"
@@ -238,7 +226,6 @@ async def is_admin_or_owner(chat_id, user_id):
         logger.error(f"Error checking admin status: {e}")
         return False
 
-# Handler: /set command for setting force subscription
 @app.on(events.NewMessage(pattern=r"^/set(?:@\w+)?( .+)?$", func=lambda e: e.is_group))
 @check_fsub
 async def set_forcesub(event):
@@ -247,7 +234,6 @@ async def set_forcesub(event):
     chat_id = event.chat_id
     user_id = event.sender_id
 
-    # Check if user is admin or owner
     async def is_admin_or_owner(chat_id, user_id):
         try:
             member = await app.get_permissions(chat_id, user_id)
@@ -261,8 +247,7 @@ async def set_forcesub(event):
     if not await is_admin_or_owner(chat_id, user_id):
         return await event.reply("**ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
 
-    await add_group(chat_id)  # Add group to database
-
+    await add_group(chat_id)
     command = event.pattern_match.group(1)
     if not command:
         return await event.reply("**ᴜsᴀɢᴇ: /set <ᴄʜᴀɴɴᴇʟ ᴜsᴇʀɴᴀᴍᴇ ᴏʀ ɪᴅ ᴏʀ ʟɪɴᴋ> (ᴜᴘ ᴛᴏ 4)**")
@@ -276,18 +261,14 @@ async def set_forcesub(event):
         try:
             if channel_input.startswith("https://t.me/"):
                 channel_input = channel_input.replace("https://t.me/", "")
-
-            # Get entity by integer ID or username
             try:
                 channel_id = int(channel_input)
                 channel_entity = await app.get_entity(channel_id)
             except ValueError:
                 channel_entity = await app.get_entity(channel_input)
                 channel_id = channel_entity.id
-
             channel_info = await app(GetFullChannelRequest(channel_entity))
             channel_title = channel_info.chats[0].title
-
             if channel_info.chats[0].username:
                 channel_username = f"@{channel_info.chats[0].username}"
                 channel_link = f"https://t.me/{channel_info.chats[0].username}"
@@ -295,7 +276,6 @@ async def set_forcesub(event):
                 invite = await app(ExportChatInviteRequest(channel_id))
                 channel_username = invite.link
                 channel_link = invite.link
-
             fsub_data.append({
                 "id": channel_id,
                 "username": channel_username,
@@ -326,7 +306,6 @@ async def set_forcesub(event):
     else:
         await event.reply(f"**🎉 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ sᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n{channel_list}")
 
-# Handler: /fsub command to manage force subscription
 @app.on(events.NewMessage(pattern=r"^/fsub(?:@\w+)?$", func=lambda e: e.is_group))
 @check_fsub
 async def manage_forcesub(event):
@@ -356,7 +335,6 @@ async def manage_forcesub(event):
         channel_list = "\n".join([f"**{c['title']}** ({c['username']})" for c in forcesub_data["channels"]])
         is_enabled = forcesub_data.get("enabled", True)
         
-        # Create unique callback data
         callback_data = f"fsub_toggle_{chat_id}_{1 if not is_enabled else 0}"
         
         buttons = [[Button.inline(
@@ -374,7 +352,6 @@ async def manage_forcesub(event):
         logger.error(f"Error in manage_forcesub: {str(e)}")
         await event.reply("**❌ An error occurred while processing the command.**")
 
-# Handler: Callback query for toggling force subscription status
 @app.on(events.CallbackQuery(pattern=r"fsub_toggle_(\-?\d+)_([01])"))
 async def toggle_forcesub(event):
     try:
@@ -431,7 +408,6 @@ async def toggle_forcesub(event):
         logger.error(f"Error in toggle_forcesub: {str(e)}")
         await event.answer("**❌ An error occurred while processing your request.**", alert=True)
 
-# Handler: /reset command to remove force subscription from a group
 @app.on(events.NewMessage(pattern=r"^/reset(?:@\w+)?$", func=lambda e: e.is_group))
 @check_fsub
 async def reset_forcesub(event):
@@ -457,7 +433,6 @@ async def reset_forcesub(event):
     await forcesub_collection.delete_one({"chat_id": chat_id})
     await event.reply("**✅ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ʜᴀs ʙᴇᴇɴ ʀᴇsᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ.**")
 
-# Handler: /stats command to show bot statistics
 @app.on(events.NewMessage(pattern=r"^/stats(?:@\w+)?$"))
 @check_fsub
 async def stats(event):
@@ -476,7 +451,6 @@ async def stats(event):
         f"**➲ ʙᴀɴɴᴇᴅ ᴜsᴇʀs:** {banned_users}"
     )
 
-# Handler: /ban command to ban a user
 @app.on(events.NewMessage(pattern=r"^/ban(?:@\w+)? (\d+)$"))
 @check_fsub
 async def ban_user(event):
@@ -488,19 +462,17 @@ async def ban_user(event):
     await banned_users_collection.insert_one({"user_id": user_id})
     await event.reply(f"**✅ ᴜsᴇʀ {user_id} ʜᴀs ʙᴇᴇɴ ʙᴀɴɴᴇᴅ.**")
 
-# Handler: /unban command to unban a user
 @app.on(events.NewMessage(pattern=r"^/unban(?:@\w+)? (\d+)$"))
 @check_fsub
 async def unban_user(event):
     if not await is_command_for_me(event):
         return
     if event.sender_id != OWNER_ID:
-        return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
+        return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪς ᴄᴏᴍᴍᴀɴᴅ.**")
     user_id = int(event.pattern_match.group(1))
     await banned_users_collection.delete_one({"user_id": user_id})
     await event.reply(f"**✅ ᴜsᴇʀ {user_id} ʜᴀs ʙᴇᴇɴ ᴜɴᴀʙɴᴇᴅ.**")
 
-# Handler: /broadcast command to send a message to all users and groups
 @app.on(events.NewMessage(pattern=r"^/(broadcast|gcast)(?:@\w+)?( .*)?$"))
 @check_fsub
 async def broadcast(event):
@@ -544,7 +516,6 @@ async def broadcast(event):
         f"**❌ ғᴀɪʟᴇᴅ:** {failed}"
     )
 
-# Handler: Private messages to check for banned users
 @app.on(events.NewMessage(func=lambda e: e.is_private))
 async def check_ban(event):
     if await banned_users_collection.find_one({"user_id": event.sender_id}):
@@ -553,19 +524,16 @@ async def check_ban(event):
 @app.on(events.NewMessage)
 async def handle_new_message(event):
     if event.is_private:
-        await add_user(event.sender_id)  # Add user to database on any private message
+        await add_user(event.sender_id)
     elif event.is_group:
         await add_group(event.chat_id)
 
-# Update check_fsub_handler to include owner fsub check for groups
 @app.on(events.NewMessage)
 async def check_fsub_handler(event):
     if hasattr(event, '_fsub_checked'):
         return
         
     user_id = event.sender_id
-    
-    # Only check group's force sub, not owner's force sub for regular messages
     if event.is_group:
         chat_id = event.chat_id
         forcesub_data = await forcesub_collection.find_one({"chat_id": chat_id})
@@ -600,9 +568,7 @@ async def check_fsub_handler(event):
                 await event.delete()
             except Exception as e:
                 logger.error(f"Could not delete message: {e}")
-
             try:
-                # Create buttons with proper error handling
                 buttons = []
                 for c in forcesub_data['channels']:
                     try:
@@ -610,32 +576,26 @@ async def check_fsub_handler(event):
                             buttons.append([Button.url(f"๏ ᴊᴏɪɴ {c['title']}", c['link'])])
                     except Exception as e:
                         logger.error(f"Error creating button for channel {c.get('id', 'unknown')}: {e}")
-                
-                # Only send message with buttons if we have valid buttons
                 if buttons:
                     await event.reply(
                         f"**👋 ʜᴇʟʟᴏ {event.sender.first_name},**\n\n"
-                        f"**ʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ᴊᴏɪɴ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n"
-                        f"{chr(10).join([f\"๏ [{c['title']}]({c['link']})\" for c in forcesub_data['channels'] if c.get('title') and c.get('link')])}",
+                        f"**ʏᴏᴜ ɴᴇᴇᴅ ᴊᴏɪɴ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n"
+                        f"{chr(10).join([f'๏ [{c[\"title\"]}]({c[\"link\"]})' for c in forcesub_data['channels'] if c.get('title') and c.get('link')])}",
                         buttons=buttons
                     )
                 else:
-                    # Fallback message if no valid buttons could be created
                     await event.reply(
                         f"**👋 ʜᴇʟʟᴏ {event.sender.first_name},**\n\n"
-                        f"**ʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ᴊᴏɪɴ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ.**"
+                        f"**ʏᴏᴜ ɴᴇᴇᴅ ᴊᴏɪɴ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ.**"
                     )
             except Exception as e:
                 logger.error(f"An error occurred while sending the force sub message: {e}")
             return
-            
 
 async def startup_notification():
     try:
-        # Initialize database counts
         total_users = len(await get_all_users())
         total_groups = len(await get_all_groups())
-        
         await app.send_message(
             LOGGER_ID,
             "**✅ ʙᴏᴛ ʜᴀs sᴛᴀʀᴛᴇᴅ sᴜᴄᴄᴇssғᴜʀʀʏ!**\n\n"
