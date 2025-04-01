@@ -44,7 +44,8 @@ async def remove_group(group_id):
 
 async def get_all_users():
     users = []
-    for user in users_collection.find():
+    cursor = users_collection.find()
+    async for user in cursor:
         try:
             users.append(user["user_id"])
         except Exception:
@@ -53,7 +54,8 @@ async def get_all_users():
 
 async def get_all_groups():
     groups = []
-    for chat in groups_collection.find():
+    cursor = groups_collection.find()
+    async for chat in cursor:
         try:
             groups.append(chat["group_id"])
         except Exception:
