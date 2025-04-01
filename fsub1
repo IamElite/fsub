@@ -1,4 +1,4 @@
-import os, logging, asyncio
+import os, logging, asyncio  # chat gpt
 from motor.motor_asyncio import AsyncIOMotorClient
 from telethon import TelegramClient, events, Button
 from telethon.tl.functions.channels import GetParticipantRequest, GetFullChannelRequest
