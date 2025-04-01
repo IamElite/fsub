@@ -106,8 +106,6 @@ async def check_owner_fsub(user_id):
 def check_fsub(func):
     async def wrapper(event):
         user_id = event.sender_id
-        
-        # Check for bot commands starting with '/'
         if event.text and event.text.startswith('/'):
             missing_owner_subs = await check_owner_fsub(user_id)
             if missing_owner_subs is not True:
@@ -149,7 +147,7 @@ async def is_command_for_me(event):
 
 @app.on(events.ChatAction)
 async def handle_added_to_chat(event):
-    print(dir(event))  # Debug: Print available attributes
+    print(dir(event))
     if hasattr(event, 'user_left') and event.user_left:
         me = await app.get_me()
         if event.user_id == me.id:
@@ -179,7 +177,6 @@ async def start(event):
     user_id = event.sender_id
     await add_user(user_id)
     user = await event.get_sender()
-    user_id = user.id
     await app.send_message(
         LOGGER_ID,
         f"**🆕 ɴᴇᴡ ᴜsᴇʀ sᴛᴀʀᴛᴇᴅ ᴛʜᴇ ʙᴏᴛ**\n\n"
@@ -468,7 +465,7 @@ async def unban_user(event):
     if not await is_command_for_me(event):
         return
     if event.sender_id != OWNER_ID:
-        return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪς ᴄᴏᴍᴍᴀɴᴅ.**")
+        return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
     user_id = int(event.pattern_match.group(1))
     await banned_users_collection.delete_one({"user_id": user_id})
     await event.reply(f"**✅ ᴜsᴇʀ {user_id} ʜᴀs ʙᴇᴇɴ ᴜɴᴀʙɴᴇᴅ.**")
@@ -577,10 +574,12 @@ async def check_fsub_handler(event):
                     except Exception as e:
                         logger.error(f"Error creating button for channel {c.get('id', 'unknown')}: {e}")
                 if buttons:
+                    # Use .format() to avoid nested f-string issues
+                    channel_lines = ["๏ [{}]({})".format(c["title"], c["link"]) for c in forcesub_data["channels"] if c.get("title") and c.get("link")]
                     await event.reply(
                         f"**👋 ʜᴇʟʟᴏ {event.sender.first_name},**\n\n"
                         f"**ʏᴏᴜ ɴᴇᴇᴅ ᴊᴏɪɴ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n"
-                        f"{chr(10).join([f'๏ [{c[\"title\"]}]({c[\"link\"]})' for c in forcesub_data['channels'] if c.get('title') and c.get('link')])}",
+                        f"{chr(10).join(channel_lines)}",
                         buttons=buttons
                     )
                 else:
