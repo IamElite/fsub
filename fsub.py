@@ -112,11 +112,11 @@ def check_fsub(func):
                 buttons = []
                 for channel in missing_owner_subs:
                     if hasattr(channel, 'username') and channel.username:
-                        buttons.append([Button.url(f"Join {channel.title}", f"https://t.me/{channel.username}")])
+                        buttons.append([Button.url(f"Join", f"https://t.me/{channel.username}")])
                     else:
                         try:
                             invite = await app(ExportChatInviteRequest(channel))
-                            buttons.append([Button.url(f"Join {channel.title}", invite.link)])
+                            buttons.append([Button.url(f"Join", invite.link)])
                         except Exception as e:
                             logger.error(f"Error creating invite for {channel.id}: {e}")
                             continue
@@ -570,12 +570,12 @@ async def check_fsub_handler(event):
                 for c in forcesub_data['channels']:
                     try:
                         if c.get('link') and c.get('title'):
-                            buttons.append([Button.url(f"๏ ᴊᴏɪɴ {c['title']}", c['link'])])
+                            buttons.append([Button.url(f"๏ ᴊᴏɪɴ ๏", c['link'])])
                     except Exception as e:
                         logger.error(f"Error creating button for channel {c.get('id', 'unknown')}: {e}")
                 if buttons:
                     # Use .format() to avoid nested f-string issues
-                    channel_lines = ["๏ [{}]({})".format(c["title"], c["link"]) for c in forcesub_data["channels"] if c.get("title") and c.get("link")]
+                    channel_lines = ["๏ [{}]({}) ๏".format(c["link"]) for c in forcesub_data["channels"] if c.get("link")]
                     await event.reply(
                         f"**👋 ʜᴇʟʟᴏ {event.sender.first_name},**\n\n"
                         f"**ʏᴏᴜ ɴᴇᴇᴅ ᴊᴏɪɴ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n"
