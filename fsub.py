@@ -31,16 +31,16 @@ banned_users_collection = db["banned_users"]
 
 # Database functions
 async def add_user(user_id):
-    if not users_collection.find_one({"user_id": user_id}):
-        users_collection.insert_one({"user_id": user_id})
+    if not await users_collection.find_one({"user_id": user_id}):
+        await users_collection.insert_one({"user_id": user_id})
 
 async def add_group(group_id):
-    if not groups_collection.find_one({"group_id": group_id}):
-        groups_collection.insert_one({"group_id": group_id})
+    if not await groups_collection.find_one({"group_id": group_id}):
+        await groups_collection.insert_one({"group_id": group_id})
 
 async def remove_group(group_id):
-    if groups_collection.find_one({"group_id": group_id}):
-        groups_collection.delete_one({"group_id": group_id})
+    if await groups_collection.find_one({"group_id": group_id}):
+        await groups_collection.delete_one({"group_id": group_id})
 
 async def get_all_users():
     users = []
