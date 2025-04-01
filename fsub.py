@@ -273,7 +273,7 @@ async def set_forcesub(event):
                 # If not an integer, try as username
                 channel_entity = await app.get_entity(channel_input)
                 channel_id = channel_entity.id
-            
+
             channel_info = await app(GetFullChannelRequest(channel_entity))
             channel_title = channel_info.chats[0].title
 
@@ -285,19 +285,23 @@ async def set_forcesub(event):
                 channel_username = invite.link
                 channel_link = invite.link
 
-            fsub_data.append({"id": channel_id, "username": channel_username, "title": channel_title, "link": channel_link})
+            fsub_data.append({
+                "id": channel_id,
+                "username": channel_username,
+                "title": channel_title,
+                "link": channel_link
+            })
         except Exception as e:
             logger.error(f"Error fetching channel info for {channel_input}: {e}")
             return await event.reply(f"**🚫 ғᴀɪʟᴇᴅ ᴛᴏ ғᴇᴛᴄʜ ᴅᴀᴛᴀ ғᴏʀ {channel_input}.**")
 
-    forcesub_collection.update_one(
+    await forcesub_collection.update_one(
         {"chat_id": chat_id},
         {"$set": {"channels": fsub_data, "enabled": True}},
         upsert=True
     )
 
     set_by_user = f"@{event.sender.username}" if event.sender.username else event.sender.first_name
-
     channel_list = "\n".join([f"**{c['title']}** ({c['username']})" for c in fsub_data])
 
     if len(fsub_data) == 1:
@@ -323,7 +327,7 @@ async def manage_forcesub(event):
         if not await is_admin_or_owner(chat_id, user_id):
             return await event.reply("**ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
 
-        forcesub_data = forcesub_collection.find_one({"chat_id": chat_id})
+        forcesub_data = await forcesub_collection.find_one({"chat_id": chat_id})
         if not forcesub_data or not forcesub_data.get("channels"):
             return await event.reply("**🚫 ɴᴏ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ɪs sᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ.**")
 
@@ -360,12 +364,12 @@ async def toggle_forcesub(event):
         if not await is_admin_or_owner(chat_id, user_id):
             return await event.answer("**ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs.**", alert=True)
 
-        forcesub_data = forcesub_collection.find_one({"chat_id": chat_id})
+        forcesub_data = await forcesub_collection.find_one({"chat_id": chat_id})
         if not forcesub_data:
             return await event.answer("**ɴᴏ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ɪs sᴇᴛ.**", alert=True)
 
         # Update database
-        forcesub_collection.update_one(
+        await forcesub_collection.update_one(
             {"chat_id": chat_id},
             {"$set": {"enabled": new_state}}
         )
@@ -408,22 +412,20 @@ async def reset_forcesub(event):
         return await event.reply("**ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
 
     await remove_group(chat_id)  # Remove group from the database
-    forcesub_collection.delete_one({"chat_id": chat_id})
+    await forcesub_collection.delete_one({"chat_id": chat_id})
     await event.reply("**✅ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ʜᴀs ʙᴇᴇɴ ʀᴇsᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ.**")
 
-# Update owner command patterns to include optional bot username
 @app.on(events.NewMessage(pattern=r"^/stats(?:@\w+)?$"))
 @check_fsub
 async def stats(event):
     if not await is_command_for_me(event):
         return
-    user_id = event.sender_id
     if event.sender_id != OWNER_ID:
         return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
 
     total_users = len(await get_all_users())  # Get all users from the database
     total_groups = len(await get_all_groups())  # Get all groups from the database
-    banned_users = banned_users_collection.count_documents({})
+    banned_users = await banned_users_collection.count_documents({})
     await event.reply(
         f"**📊 ʙᴏᴛ sᴛᴀᴛɪsᴛɪᴄs:**\n\n"
         f"**➲ ᴛᴏᴛᴀʟ ᴜsᴇʀs:** {total_users}\n"
@@ -436,12 +438,11 @@ async def stats(event):
 async def ban_user(event):
     if not await is_command_for_me(event):
         return
-    user_id = event.sender_id
     if event.sender_id != OWNER_ID:
         return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
 
     user_id = int(event.pattern_match.group(1))
-    banned_users_collection.insert_one({"user_id": user_id})
+    await banned_users_collection.insert_one({"user_id": user_id})
     await event.reply(f"**✅ ᴜsᴇʀ {user_id} ʜᴀs ʙᴇᴇɴ ʙᴀɴɴᴇᴅ.**")
 
 @app.on(events.NewMessage(pattern=r"^/unban(?:@\w+)? (\d+)$"))
@@ -449,12 +450,11 @@ async def ban_user(event):
 async def unban_user(event):
     if not await is_command_for_me(event):
         return
-    user_id = event.sender_id
     if event.sender_id != OWNER_ID:
         return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
 
     user_id = int(event.pattern_match.group(1))
-    banned_users_collection.delete_one({"user_id": user_id})
+    await banned_users_collection.delete_one({"user_id": user_id})
     await event.reply(f"**✅ ᴜsᴇʀ {user_id} ʜᴀs ʙᴇᴇɴ ᴜɴᴀʙɴᴇᴅ.**")
 
 @app.on(events.NewMessage(pattern=r"^/(broadcast|gcast)(?:@\w+)?( .*)?$"))
@@ -465,7 +465,6 @@ async def broadcast(event):
     if event.sender_id != OWNER_ID:
         return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
 
-    # Check if there's a replied message or text content
     reply = event.reply_to_message if hasattr(event, 'reply_to_message') else None
     text = event.pattern_match.group(2)
 
@@ -475,12 +474,9 @@ async def broadcast(event):
     progress_msg = await event.reply("**❖ ʙʀᴏᴀᴅᴄᴀsᴛɪɴɢ ᴍᴇssᴀɢᴇ ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ...**")
 
     sent_groups, sent_users, failed, pinned = 0, 0, 0, 0
-    
-    # Get all users and groups
+
     users = await get_all_users()
     groups = await get_all_groups()
-    
-    # Combine recipients
     recipients = groups + users
 
     for chat_id in recipients:
@@ -489,8 +485,7 @@ async def broadcast(event):
                 msg = await event.reply_to_message.forward(chat_id)
             else:
                 msg = await app.send_message(chat_id, text.strip())
-            
-            # Check if it's a group and try to pin
+
             if isinstance(chat_id, int) and chat_id < 0:
                 try:
                     await app.pin_message(chat_id, msg.id, notify=False)
@@ -501,8 +496,7 @@ async def broadcast(event):
             else:
                 sent_users += 1
 
-            await asyncio.sleep(0.2)  # Prevent rate limits
-
+            await asyncio.sleep(0.2)
         except Exception as e:
             logger.error(f"Failed to send broadcast to {chat_id}: {e}")
             failed += 1
@@ -517,8 +511,7 @@ async def broadcast(event):
 
 @app.on(events.NewMessage(func=lambda e: e.is_private))
 async def check_ban(event):
-    user_id = event.sender_id
-    if banned_users_collection.find_one({"user_id": event.sender_id}):
+    if await banned_users_collection.find_one({"user_id": event.sender_id}):
         return await event.reply("**🚫 ʏᴏᴜ ᴀʀᴇ ʙᴀɴɴᴇᴅ ғʀᴏᴍ ᴜsɪɴɢ ᴛʜɪs ʙᴏᴛ.**")
 
 @app.on(events.NewMessage)
