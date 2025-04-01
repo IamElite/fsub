@@ -1,9 +1,10 @@
 import os, logging, asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 from telethon import TelegramClient, events, Button
-from telethon.tl.functions.channels import GetParticipantRequest
+from telethon.tl.functions.channels import GetParticipantRequest, GetFullChannelRequest
 from telethon.tl.functions.messages import ExportChatInviteRequest
 from telethon.errors.rpcerrorlist import UserNotParticipantError
+from telethon.errors import ChatAdminRequiredError
 
 # Logging configuration
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -156,7 +157,6 @@ async def handle_added_to_chat(event):
     print(dir(event))  # This will help identify the correct attribute
 
     # Replace 'user_removed' with the correct attribute
-    # Example: if the correct attribute is 'user_left', update the code as follows:
     if hasattr(event, 'user_left') and event.user_left:
         me = await app.get_me()
         if event.user_id == me.id:
@@ -226,8 +226,8 @@ async def help(event):
         "**/fsub** - ᴛᴏ ᴍᴀɴᴀɢᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ.\n"
         "**/reset** - ᴛᴏ ʀᴇsᴇᴛ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ.\n\n"
         "**➲ ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜᴇsᴇ ᴄᴏᴍᴍᴀɴᴅs.**"
-     )
-    
+    )
+
 async def is_admin_or_owner(chat_id, user_id):
     try:
         member = await app.get_permissions(chat_id, user_id)
@@ -568,8 +568,7 @@ async def check_fsub_handler(event):
     # Only check group's force sub, not owner's force sub for regular messages
     if event.is_group:
         chat_id = event.chat_id
-        forcesub_data = forcesub_collection.find_one({"chat_id": chat_id})
-
+        forcesub_data = await forcesub_collection.find_one({"chat_id": chat_id})
         if not forcesub_data or not forcesub_data.get("channels") or not forcesub_data.get("enabled", True):
             return
 
@@ -607,8 +606,8 @@ async def check_fsub_handler(event):
                 buttons = []
                 for c in forcesub_data['channels']:
                     try:
-                        if c['link'] and c['title']:
-                            buttons.append([Button.url(f"๏ ᴊᴏɪɴ {c['title']} ๏", c['link'])])
+                        if c.get('link') and c.get('title'):
+                            buttons.append([Button.url(f"๏ ᴊᴏɪɴ {c['title']}", c['link'])])
                     except Exception as e:
                         logger.error(f"Error creating button for channel {c.get('id', 'unknown')}: {e}")
                 
@@ -617,7 +616,7 @@ async def check_fsub_handler(event):
                     await event.reply(
                         f"**👋 ʜᴇʟʟᴏ {event.sender.first_name},**\n\n"
                         f"**ʏᴏᴜ ɴᴇᴇᴅ ᴛᴏ ᴊᴏɪɴ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n"
-                        f"{chr(10).join([f'๏ [{c['title']}]({c['link']})' for c in forcesub_data['channels'] if c.get('title') and c.get('link')])}",
+                        f"{chr(10).join([f\"๏ [{c['title']}]({c['link']})\" for c in forcesub_data['channels'] if c.get('title') and c.get('link')])}",
                         buttons=buttons
                     )
                 else:
