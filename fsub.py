@@ -113,7 +113,6 @@ def check_fsub(func):
                 btns = []
                 temp = []
                 for channel in missing_owner_subs:
-                    # Use inline callback button with data "fsub_join_<channel_id>"
                     temp.append(Button.inline("Join", data=f"fsub_join_{channel.id}"))
                     if len(temp) == 2:
                         btns.append(temp)
@@ -121,16 +120,14 @@ def check_fsub(func):
                 if temp:
                     btns.append(temp)
                 await event.reply(
-                    "**⚠️ Access Restricted ⚠️**\n\n"
-                    "**You must join our channel(s) to use the bot!**\n"
-                    "**Click the Join buttons below and then try again.**",
+                    "⚠️ ʀᴇsᴛʀɪᴄᴛᴇᴅ: ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴜsᴇ ʙᴏᴛ!",
                     buttons=btns
                 )
                 return
         return await func(event)
     return wrapper
 
-# Utility function to check if command is meant for this bot
+# Utility: Check if command is meant for this bot
 async def is_command_for_me(event):
     try:
         me = await app.get_me()
@@ -144,11 +141,9 @@ async def is_command_for_me(event):
         logger.error(f"Error checking command target: {e}")
         return True
 
-# When bot is added to a group, send an intro message with required permissions
+# When bot is added to a group, send an intro message (using small caps & emoji)
 @app.on(events.ChatAction)
 async def handle_added_to_chat(event):
-    # Debug: print available attributes if needed
-    # print(dir(event))
     if hasattr(event, 'user_left') and event.user_left:
         me = await app.get_me()
         if event.user_id == me.id:
@@ -158,21 +153,19 @@ async def handle_added_to_chat(event):
         if event.user_id == me.id:
             chat = await event.get_chat()
             await add_group(chat.id)
-            # Send introduction message in group
             intro_text = (
-                f"**Hello! I'm {me.first_name}.**\n\n"
-                "Thank you for adding me to this group.\n\n"
-                "**I require the following permissions:**\n"
-                "• Send Messages\n"
-                "• Delete Messages\n"
-                "• Pin Messages\n"
-                "• Read Message History\n\n"
-                "Please ensure I have admin rights for proper functionality.\n"
-                "Feel free to contact support for any help!"
-            )
+                "🤖 ʜᴇʟʟᴏ! ɪ'ᴍ {}.\n\n"
+                "ᴛʜᴀɴᴋs ᴛᴏ ᴀᴅᴅɪɴɢ ᴍᴇ ᴛᴏ ᴛʜɪs ɢʀᴏᴜᴘ.\n\n"
+                "⚙️ ʀᴇǫᴜɪʀᴇᴅ ᴘᴇʀᴍɪssɪᴏɴs:\n"
+                "   • sᴇɴᴅ ᴍᴇssᴀɢᴇs\n"
+                "   • ᴅᴇʟᴇᴛᴇ ᴍᴇssᴀɢᴇs\n"
+                "   • ᴘɪɴ ᴍᴇssᴀɢᴇs\n"
+                "   • ʀᴇᴀᴅ ʜɪsᴛᴏʀʏ\n\n"
+                "❗ ᴘʟᴇᴀsᴇ ɢɪᴠᴇ ᴍᴇ ᴀᴅᴍɪɴ ʀɪɢʜᴛs  ғᴏʀ ᴘʀᴏᴘᴇʀ ꜰᴜɴᴄᴛɪᴏɴ."
+            ).format(me.first_name)
             await app.send_message(chat.id, intro_text)
 
-# /start command with user-friendly interface (1,2,1 button layout)
+# /start command with user-friendly interface (1,2,1 button layout) in small caps with emoji
 @app.on(events.NewMessage(pattern=r"^/start(?:@\w+)?$"))
 @check_fsub
 async def start(event):
@@ -181,38 +174,36 @@ async def start(event):
     user_id = event.sender_id
     await add_user(user_id)
     user = await event.get_sender()
-    # Updated welcome message with 4 buttons arranged as 1,2,1 layout
     welcome_text = (
-        "**Welcome to the Force Subscription Bot!**\n\n"
-        "Use the buttons below to navigate through the bot options."
+        "👋 ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴍʏ ʙᴏᴛ!\n\n"
+        "ᴜsᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ɴᴀᴠɪɢᴀᴛᴇ."
     )
     buttons = [
-        [Button.inline("Add Team", b"add_team")],
-        [Button.inline("Update", b"update"), Button.inline("Support", b"support")],
-        [Button.inline("Owner", b"owner")]
+        [Button.inline("ᴀᴅᴅ ᴛᴇᴀᴍ", b"add_team")],
+        [Button.inline("ᴜᴘᴅᴀᴛᴇ", b"update"), Button.inline("ꜱᴜᴘᴘᴏʀᴛ", b"support")],
+        [Button.inline("ᴏᴡɴᴇʀ", b"owner")]
     ]
     await event.reply(welcome_text, buttons=buttons)
 
-# Updated /help command with user-friendly instructions
+# /help command with updated small caps text & emoji
 @app.on(events.NewMessage(pattern=r"^/help(?:@\w+)?$"))
 @check_fsub
 async def help(event):
     if not await is_command_for_me(event):
         return
     help_text = (
-        "**Help Menu**\n\n"
-        "• **/start** - Display the welcome message and main menu.\n"
-        "• **/set <channel username/id/link>** - Set force subscription channels (up to 4).\n"
-        "• **/fsub** - Manage force subscription settings (toggle on/off).\n"
-        "• **/reset** - Reset force subscription settings and remove all channels.\n"
-        "• **/stats** - View bot statistics (owner only).\n"
-        "• **/broadcast <message>** - Broadcast a message to all users (owner only).\n"
-        "• **/ban <user id>** / **/unban <user id>** - Ban or unban a user (owner only).\n\n"
-        "For any queries, feel free to contact support."
+        "ℹ️ ʜᴇʟᴘ ᴍᴇɴᴜ\n\n"
+        "• **/start** - ᴅɪsᴘʟᴀʏ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ ᴀɴᴅ ᴍᴀɪɴ ᴍᴇɴᴜ.\n"
+        "• **/set <channel>** - ꜱᴇᴛ ғᴏʀᴄᴇ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ (ᴜᴘ ᴛᴏ 4).\n"
+        "• **/fsub** - ᴍᴀɴᴀɢᴇ ғᴏʀᴄᴇ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ ꜱᴇᴛᴛɪɴɢꜱ.\n"
+        "• **/reset** - ʀᴇꜱᴇᴛ ғᴏʀᴄᴇ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ.\n"
+        "• **/stats** - ᴠɪᴇᴡ ʙᴏᴛ ꜱᴛᴀᴛꜱ (ᴏᴡɴᴇʀ ᴏɴʟʏ).\n"
+        "• **/broadcast <message>** - ʙʀᴏᴀᴅᴄᴀꜱᴛ ᴍᴇꜱꜱᴀɢᴇ (ᴏᴡɴᴇʀ ᴏɴʟʏ).\n"
+        "• **/ban <user id>** / **/unban <user id>** - ʙᴀɴ/ᴜɴʙᴀɴ ᴜꜱᴇʀ (ᴏᴡɴᴇʀ ᴏɴʟʏ)."
     )
     await event.reply(help_text)
 
-# Utility function for checking admin/owner status
+# Utility function: Check if user is admin/owner
 async def is_admin_or_owner(chat_id, user_id):
     try:
         member = await app.get_permissions(chat_id, user_id)
@@ -243,16 +234,16 @@ async def set_forcesub(event):
             return False
 
     if not await is_admin_or_owner(chat_id, user_id):
-        return await event.reply("**Only group owners, admins or the bot owner can use this command.**")
+        return await event.reply("🚫 ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀꜱ/ᴀᴅᴍɪɴꜱ ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ.")
 
     await add_group(chat_id)
     command = event.pattern_match.group(1)
     if not command:
-        return await event.reply("**Usage: /set <channel username/id/link> (up to 4)**")
+        return await event.reply("ℹ️ ᴜꜱᴀɢᴇ: /set <channel username/id/link> (ᴜᴘ ᴛᴏ 4)")
 
     channels = command.strip().split()
     if len(channels) > 4:
-        return await event.reply("**You can add up to 4 force subscriptions only.**")
+        return await event.reply("🚫 ʏᴏᴜ ᴄᴀɴ ᴀᴅᴅ ᴜᴘ ᴛᴏ 4 ꜰᴏʀᴄᴇ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴꜱ.")
 
     fsub_data = []
     for channel_input in channels:
@@ -282,7 +273,7 @@ async def set_forcesub(event):
             })
         except Exception as e:
             logger.error(f"Error fetching channel info for {channel_input}: {e}")
-            return await event.reply(f"**Failed to fetch data for {channel_input}.**")
+            return await event.reply(f"🚫 ᴇʀʀᴏʀ: ʙᴀɪʟᴇᴅ ᴛᴏ ꜰᴇᴛᴄʜ ᴅᴀᴛᴀ ᴛᴏ {channel_input}.")
 
     await forcesub_collection.update_one(
         {"chat_id": chat_id},
@@ -291,18 +282,17 @@ async def set_forcesub(event):
     )
 
     set_by_user = f"@{event.sender.username}" if event.sender.username else event.sender.first_name
-    channel_list = "\n".join([f"**{c['title']}** ({c['username']})" for c in fsub_data])
-
+    channel_list = "\n".join([f"• {c['title']} ({c['username']})" for c in fsub_data])
     if len(fsub_data) == 1:
         channel_info = fsub_data[0]
         await event.reply(
-            f"**Force subscription set to [{channel_info['title']}]({channel_info['username']}) for this group.**\n\n"
-            f"**Channel ID:** `{channel_info['id']}`\n"
-            f"**Channel Link:** [Get Link]({channel_info['link']})\n"
-            f"**Set by:** {set_by_user}"
+            f"✅ ʙᴏᴛ ꜰᴏʀᴄᴇ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ ꜱᴇᴛ ᴛᴏ [{channel_info['title']}]({channel_info['username']})\n\n"
+            f"• ᴄʜᴀɴɴᴇʟ ɪᴅ: `{channel_info['id']}`\n"
+            f"• ʟɪɴᴋ: [Get Link]({channel_info['link']})\n"
+            f"• ꜱᴇᴛ ʙʏ: {set_by_user}"
         )
     else:
-        await event.reply(f"**Force subscription set for this group:**\n\n{channel_list}")
+        await event.reply(f"✅ ʙᴏᴛ ꜰᴏʀᴄᴇ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ ꜱᴇᴛ:\n\n{channel_list}")
 
 # /fsub command to manage force subscription settings
 @app.on(events.NewMessage(pattern=r"^/fsub(?:@\w+)?$", func=lambda e: e.is_group))
@@ -325,30 +315,27 @@ async def manage_forcesub(event):
                 return False
 
         if not await is_admin_or_owner(chat_id, user_id):
-            return await event.reply("**Only group owners, admins or the bot owner can use this command.**")
+            return await event.reply("🚫 ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀꜱ/ᴀᴅᴍɪɴꜱ ᴏʀ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ.")
 
         forcesub_data = await forcesub_collection.find_one({"chat_id": chat_id})
         if not forcesub_data or not forcesub_data.get("channels") or not forcesub_data.get("enabled", True):
-            return await event.reply("**No force subscription is set for this group.**")
+            return await event.reply("ℹ️ ɴᴏ ꜰᴏʀᴄᴇ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ ɪꜱ ꜱᴇᴛ ɪɴ ᴛʜɪꜱ ɢʀᴏᴜᴘ.")
 
-        channel_list = "\n".join([f"**{c['title']}** ({c['username']})" for c in forcesub_data["channels"]])
+        channel_list = "\n".join([f"• {c['title']} ({c['username']})" for c in forcesub_data["channels"]])
         is_enabled = forcesub_data.get("enabled", True)
         
-        # Toggle button callback data
         callback_data = f"fsub_toggle_{chat_id}_{1 if not is_enabled else 0}"
-        
-        buttons = [[Button.inline("🔴 Turn Off" if is_enabled else "🟢 Turn On", callback_data)]]
+        buttons = [[Button.inline("🔴 ᴛᴜʀɴ ᴏғғ" if is_enabled else "🟢 ᴛᴜʀɴ ᴏɴ", callback_data)]]
         await event.reply(
-            f"**Force Subscription for this group:**\n\n"
-            f"{channel_list}\n\n"
-            f"**Current Status:** {'🟢 On' if is_enabled else '🔴 Off'}",
+            f"⚙️ ꜰᴏʀᴄᴇ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ:\n\n{channel_list}\n\n"
+            f"• ᴄᴜʀʀᴇɴᴛ ꜱᴛᴀᴛᴜꜱ: {'🟢 ᴏɴ' if is_enabled else '🔴 ᴏғғ'}",
             buttons=buttons
         )
     except Exception as e:
         logger.error(f"Error in manage_forcesub: {str(e)}")
-        await event.reply("**An error occurred while processing the command.**")
+        await event.reply("🚫 ᴀɴ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀᴇᴅ.")
 
-# Callback query for toggling force subscription status (unchanged)
+# Callback for toggling force subscription status (unchanged text style)
 @app.on(events.CallbackQuery(pattern=r"fsub_toggle_(\-?\d+)_([01])"))
 async def toggle_forcesub(event):
     try:
@@ -356,7 +343,7 @@ async def toggle_forcesub(event):
         new_state = bool(int(event.pattern_match.group(2)))
         user_id = event.sender_id
         
-        logger.info(f"Toggle callback received: chat_id={chat_id}, new_state={new_state}, user_id={user_id}")
+        logger.info(f"Toggle callback: chat_id={chat_id}, new_state={new_state}, user_id={user_id}")
 
         async def is_admin_or_owner(chat_id, user_id):
             try:
@@ -369,36 +356,33 @@ async def toggle_forcesub(event):
                 return False
 
         if not await is_admin_or_owner(chat_id, user_id):
-            return await event.answer("**Only group owners, admins or the bot owner can use this.**", alert=True)
+            return await event.answer("🚫 ᴏɴʟʏ ᴏᴡɴᴇʀ/ᴀᴅᴍɪɴ ᴄᴀɴ ᴛᴏɢɢʟᴇ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ.", alert=True)
 
         forcesub_data = await forcesub_collection.find_one({"chat_id": chat_id})
         if not forcesub_data:
-            return await event.answer("**No force subscription is set.**", alert=True)
+            return await event.answer("ℹ️ ɴᴏ ꜰᴏʀᴄᴇ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ ɪꜱ ꜱᴇᴛ.", alert=True)
 
         await forcesub_collection.update_one(
             {"chat_id": chat_id},
             {"$set": {"enabled": new_state}}
         )
-        logger.info(f"Database updated for chat {chat_id}, new state: {new_state}")
+        logger.info(f"Database updated: chat {chat_id}, new state: {new_state}")
 
-        channel_list = "\n".join([f"**{c['title']}** ({c['username']})" for c in forcesub_data["channels"]])
+        channel_list = "\n".join([f"• {c['title']} ({c['username']})" for c in forcesub_data["channels"]])
         next_state = not new_state
-        new_buttons = [[Button.inline("🔴 Turn Off" if new_state else "🟢 Turn On", f"fsub_toggle_{chat_id}_{1 if next_state else 0}")]]
+        new_buttons = [[Button.inline("🔴 ᴛᴜʀɴ ᴏғғ" if new_state else "🟢 ᴛᴜʀɴ ᴏɴ",
+                           f"fsub_toggle_{chat_id}_{1 if next_state else 0}")]]
         await event.edit(
-            f"**Force Subscription for this group:**\n\n"
-            f"{channel_list}\n\n"
-            f"**Current Status:** {'🟢 On' if new_state else '🔴 Off'}",
+            f"⚙️ ꜰᴏʀᴄᴇ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ:\n\n{channel_list}\n\n"
+            f"• ᴄᴜʀʀᴇɴᴛ ꜱᴛᴀᴛᴜꜱ: {'🟢 ᴏɴ' if new_state else '🔴 ᴏғғ'}",
             buttons=new_buttons
         )
-        await event.answer(
-            f"**Force subscription {'enabled' if new_state else 'disabled'} successfully!**",
-            alert=True
-        )
-        logger.info(f"Toggle complete for chat {chat_id}, new state: {new_state}")
+        await event.answer(f"✅ ᴛᴏɢɢʟᴇ ᴄᴏᴍᴘʟᴇᴛᴇ: {'ᴇɴᴀʙʟᴇᴅ' if new_state else 'ᴅɪꜱᴀʙʟᴇᴅ'}.", alert=True)
+        logger.info(f"Toggle complete: chat {chat_id}, new state: {new_state}")
         
     except Exception as e:
         logger.error(f"Error in toggle_forcesub: {str(e)}")
-        await event.answer("**An error occurred while processing your request.**", alert=True)
+        await event.answer("🚫 ᴀɴ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀᴇᴅ.", alert=True)
 
 # /reset command to remove force subscription from a group
 @app.on(events.NewMessage(pattern=r"^/reset(?:@\w+)?$", func=lambda e: e.is_group))
@@ -420,29 +404,27 @@ async def reset_forcesub(event):
             return False
 
     if not await is_admin_or_owner(chat_id, user_id):
-        return await event.reply("**Only group owners, admins or the bot owner can use this command.**")
-
+        return await event.reply("🚫 ᴏɴʟʏ ᴏᴡɴᴇʀ/ᴀᴅᴍɪɴ ᴄᴀɴ ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ.")
     await remove_group(chat_id)
     await forcesub_collection.delete_one({"chat_id": chat_id})
-    await event.reply("**Force subscription has been reset for this group.**")
+    await event.reply("✅ ʀᴇꜱᴇᴛ ᴄᴏᴍᴘʟᴇᴛᴇ: ꜰᴏʀᴄᴇ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ ʀᴇꜱᴇᴛ.")
 
-# /stats command to show bot statistics (owner only)
+# /stats command (owner only)
 @app.on(events.NewMessage(pattern=r"^/stats(?:@\w+)?$"))
 @check_fsub
 async def stats(event):
     if not await is_command_for_me(event):
         return
     if event.sender_id != OWNER_ID:
-        return await event.reply("**Only the bot owner can use this command.**")
-
+        return await event.reply("🚫 ᴏɴʟʏ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ.")
     total_users = len(await get_all_users())
     total_groups = len(await get_all_groups())
     banned_users = await banned_users_collection.count_documents({})
     await event.reply(
-        f"**Bot Statistics:**\n\n"
-        f"• Total Users: {total_users}\n"
-        f"• Total Groups: {total_groups}\n"
-        f"• Banned Users: {banned_users}"
+        f"📊 ʙᴏᴛ ꜱᴛᴀᴛꜱ:\n\n"
+        f"• ᴛᴏᴛᴀʟ ᴜꜱᴇʀꜱ: {total_users}\n"
+        f"• ᴛᴏᴛᴀʟ ɢʀᴏᴜᴘꜱ: {total_groups}\n"
+        f"• ʙᴀɴɴᴇᴅ ᴜꜱᴇʀꜱ: {banned_users}"
     )
 
 # /ban command (owner only)
@@ -452,10 +434,10 @@ async def ban_user(event):
     if not await is_command_for_me(event):
         return
     if event.sender_id != OWNER_ID:
-        return await event.reply("**Only the bot owner can use this command.**")
+        return await event.reply("🚫 ᴏɴʟʏ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ.")
     user_id = int(event.pattern_match.group(1))
     await banned_users_collection.insert_one({"user_id": user_id})
-    await event.reply(f"**User {user_id} has been banned.**")
+    await event.reply(f"✅ ᴜꜱᴇʀ {user_id} ʙᴀɴɴᴇᴅ.")
 
 # /unban command (owner only)
 @app.on(events.NewMessage(pattern=r"^/unban(?:@\w+)? (\d+)$"))
@@ -464,24 +446,24 @@ async def unban_user(event):
     if not await is_command_for_me(event):
         return
     if event.sender_id != OWNER_ID:
-        return await event.reply("**Only the bot owner can use this command.**")
+        return await event.reply("🚫 ᴏɴʟʏ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ.")
     user_id = int(event.pattern_match.group(1))
     await banned_users_collection.delete_one({"user_id": user_id})
-    await event.reply(f"**User {user_id} has been unbanned.**")
+    await event.reply(f"✅ ᴜꜱᴇʀ {user_id} ᴜɴʙᴀɴɴᴇᴅ.")
 
-# /broadcast command to send a message to all users and groups (owner only)
+# /broadcast command (owner only)
 @app.on(events.NewMessage(pattern=r"^/(broadcast|gcast)(?:@\w+)?( .*)?$"))
 @check_fsub
 async def broadcast(event):
     if not await is_command_for_me(event):
         return
     if event.sender_id != OWNER_ID:
-        return await event.reply("**Only the bot owner can use this command.**")
+        return await event.reply("🚫 ᴏɴʟʏ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜꜱᴇ ᴛʜɪꜱ ᴄᴏᴍᴍᴀɴᴅ.")
     reply = event.reply_to_message if hasattr(event, 'reply_to_message') else None
     text = event.pattern_match.group(2)
     if not reply and not text:
-        return await event.reply("**Reply to a message or provide text to broadcast.**")
-    progress_msg = await event.reply("**Broadcasting message, please wait...**")
+        return await event.reply("ℹ️ ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴍᴇꜱꜱᴀɢᴇ ᴏʀ ᴘʀᴏᴠɪᴅᴇ ᴛᴇxᴛ ᴛᴏ ʙʀᴏᴀᴅᴄᴀꜱᴛ.")
+    progress_msg = await event.reply("⏳ ʙʀᴏᴀᴅᴄᴀꜱᴛɪɴɢ, ᴘʟᴇᴀꜱᴇ ᴡᴀɪᴛ...")
     sent_groups, sent_users, failed, pinned = 0, 0, 0, 0
     users = await get_all_users()
     groups = await get_all_groups()
@@ -506,20 +488,20 @@ async def broadcast(event):
             logger.error(f"Failed to send broadcast to {chat_id}: {e}")
             failed += 1
     await progress_msg.edit(
-        f"**Broadcast Completed.**\n\n"
-        f"• Groups Sent: {sent_groups}\n"
-        f"• Users Sent: {sent_users}\n"
-        f"• Pinned: {pinned}\n"
-        f"• Failed: {failed}"
+        f"✅ ʙʀᴏᴀᴅᴄᴀꜱᴛ ᴄᴏᴍᴘʟᴇᴛᴇᴅ.\n\n"
+        f"• ɢʀᴏᴜᴘꜱ: {sent_groups}\n"
+        f"• ᴜꜱᴇʀꜱ: {sent_users}\n"
+        f"• ᴘɪɴɴᴇᴅ: {pinned}\n"
+        f"• ꜰᴀɪʟᴇᴅ: {failed}"
     )
 
-# Handler for private messages to check if user is banned
+# Private messages: Check if user is banned
 @app.on(events.NewMessage(func=lambda e: e.is_private))
 async def check_ban(event):
     if await banned_users_collection.find_one({"user_id": event.sender_id}):
-        return await event.reply("**You are banned from using this bot.**")
+        return await event.reply("🚫 ʏᴏᴜ ᴀʀᴇ ʙᴀɴɴᴇᴅ.")
 
-# For every new message, add user or group to database
+# Add new message: Save user/group in DB
 @app.on(events.NewMessage)
 async def handle_new_message(event):
     if event.is_private:
@@ -527,19 +509,17 @@ async def handle_new_message(event):
     elif event.is_group:
         await add_group(event.chat_id)
 
-# Check force subscription in groups and send join buttons in 2x2 layout
+# Check force subscription in groups and send join buttons (2x2 grid, small caps with emoji)
 @app.on(events.NewMessage)
 async def check_fsub_handler(event):
     if hasattr(event, '_fsub_checked'):
         return
-        
     user_id = event.sender_id
     if event.is_group:
         chat_id = event.chat_id
         forcesub_data = await forcesub_collection.find_one({"chat_id": chat_id})
         if not forcesub_data or not forcesub_data.get("channels") or not forcesub_data.get("enabled", True):
             return
-
         is_member = True
         for channel in forcesub_data["channels"]:
             try:
@@ -557,16 +537,14 @@ async def check_fsub_handler(event):
                     is_member = False
                     break
                 else:
-                    logger.error(f"An error occurred while checking user participation: {e}")
+                    logger.error(f"Error checking user participation: {e}")
                     return
-
         if not is_member:
             try:
                 await event.delete()
             except Exception as e:
                 logger.error(f"Could not delete message: {e}")
             try:
-                # Create 2x2 grid join buttons with text "Join"
                 btns = []
                 temp = []
                 for c in forcesub_data['channels']:
@@ -576,23 +554,20 @@ async def check_fsub_handler(event):
                         temp = []
                 if temp:
                     btns.append(temp)
-                channel_lines = ["๏ [{}]({})".format(c["title"], c["link"]) for c in forcesub_data["channels"] if c.get("title") and c.get("link")]
+                channel_lines = ["• {} ({})".format(c["title"], c["link"]) for c in forcesub_data["channels"] if c.get("title") and c.get("link")]
                 await event.reply(
-                    f"**Hello {event.sender.first_name},**\n\n"
-                    f"You need to join the force subscription channel(s) to send messages in this group:\n\n"
-                    f"{chr(10).join(channel_lines)}",
+                    f"🙏 ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴛʜᴇ ꜰᴏʀᴄᴇ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ ᴄʜᴀɴɴᴇʟ(s):\n\n{chr(10).join(channel_lines)}",
                     buttons=btns
                 )
             except Exception as e:
-                logger.error(f"An error occurred while sending the force sub message: {e}")
+                logger.error(f"Error sending force sub message: {e}")
             return
 
-# Callback handler for force subscription join buttons
+# Callback for force subscription join buttons
 @app.on(events.CallbackQuery(pattern=r"fsub_join_(\d+)"))
 async def fsub_join_handler(event):
     try:
         channel_id = int(event.pattern_match.group(1))
-        # Get group id from message context
         chat_id = event.message.chat_id
         forcesub_data = await forcesub_collection.find_one({"chat_id": chat_id})
         target_channel = None
@@ -603,16 +578,16 @@ async def fsub_join_handler(event):
                     break
         if not target_channel:
             return await event.answer("Channel not found.", alert=True)
-        # Answer callback with URL to open join link
+        # If link missing, generate using ExportChatInviteRequest
+        if not target_channel.get("link"):
+            invite = await app(ExportChatInviteRequest(channel_id))
+            target_channel["link"] = invite.link
+        # Answer callback with URL so that Telegram opens the link
         await event.answer(url=target_channel["link"])
-        # Send DM to user thanking for joining
-        try:
-            await app.send_message(event.sender_id, "Thanks for joining!")
-        except Exception as e:
-            logger.error(f"Error sending DM to user {event.sender_id}: {e}")
+        # (Duplicate DM message removed to avoid double messaging)
     except Exception as e:
         logger.error(f"Error in fsub_join_handler: {e}")
-        await event.answer("An error occurred.", alert=True)
+        await event.answer("🚫 ᴀɴ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀᴇᴅ.", alert=True)
 
 async def startup_notification():
     try:
@@ -620,11 +595,11 @@ async def startup_notification():
         total_groups = len(await get_all_groups())
         await app.send_message(
             LOGGER_ID,
-            "**Bot has started successfully!**\n\n"
-            f"• Owner ID: `{OWNER_ID}`\n"
-            f"• Logger ID: `{LOGGER_ID}`\n"
-            f"• Total Users: `{total_users}`\n"
-            f"• Total Groups: `{total_groups}`"
+            "✅ ʙᴏᴛ ꜱᴛᴀʀᴛᴇᴅ ꜱᴜᴄᴄᴇꜱꜱғᴜʟʟʏ!\n\n"
+            f"• ᴏᴡɴᴇʀ ID: `{OWNER_ID}`\n"
+            f"• ʟᴏɢɢᴇʀ ID: `{LOGGER_ID}`\n"
+            f"• ᴛᴏᴛᴀʟ ᴜꜱᴇʀꜱ: `{total_users}`\n"
+            f"• ᴛᴏᴛᴀʟ ɢʀᴏᴜᴘꜱ: `{total_groups}`"
         )
     except Exception as e:
         logger.error(f"Error sending startup notification: {e}")
