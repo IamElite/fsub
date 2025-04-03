@@ -554,7 +554,7 @@ async def check_fsub_handler(event):
 async def fsub_join_handler(event):
     try:
         channel_id = int(event.pattern_match.group(1))
-        # Use event.chat_id instead of event.message.chat_id
+        # Use event.chat_id directly
         chat_id = event.chat_id
         forcesub_data = await forcesub_collection.find_one({"chat_id": chat_id})
         target_channel = None
@@ -569,15 +569,13 @@ async def fsub_join_handler(event):
         if not target_channel.get("link"):
             invite = await app(ExportChatInviteRequest(channel_id))
             target_channel["link"] = invite.link
-        # Send DM thanking for join and answer callback with URL
-        try:
-            await app.send_message(event.sender_id, "🙏 ᴛʜᴀɴᴋꜱ ꜰᴏʀ ᴊᴏɪɴɪɴɢ!")
-        except Exception as e:
-            logger.error(f"Error sending DM to user {event.sender_id}: {e}")
-        await event.answer(url=target_channel["link"])
+        # Send DM thanking for join and answer callback with URL (cache_time=0 to force redirect)
+        await app.send_message(event.sender_id, "🙏 Tx for joining!")
+        await event.answer("Redirecting...", url=target_channel["link"], cache_time=0)
     except Exception as e:
         logger.error(f"Error in fsub_join_handler: {e}")
-        await event.answer("🚫 ᴀɴ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀᴇᴅ.", alert=True)
+        await event.answer("🚫 An error occurred.", alert=True)
+
 
 async def startup_notification():
     try:
