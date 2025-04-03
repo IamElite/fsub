@@ -19,6 +19,31 @@ API_ID = int(os.getenv("API_ID", "0"))
 API_HASH = os.getenv("API_HASH", None)
 FSUB = os.getenv("FSUB", "").strip()
 
+# Global set to track users already greeted for joining fsub channels
+greeted_users = set()
+
+# Helper function to convert text to small caps
+def to_small_caps(text):
+    mapping = {
+        'a': 'ᴀ', 'b': 'ʙ', 'c': 'ᴄ', 'd': 'ᴅ', 'e': 'ᴇ',
+        'f': 'ꜰ', 'g': 'ɢ', 'h': 'ʜ', 'i': 'ɪ', 'j': 'ᴊ',
+        'k': 'ᴋ', 'l': 'ʟ', 'm': 'ᴍ', 'n': 'ɴ', 'o': 'ᴏ',
+        'p': 'ᴘ', 'q': 'ǫ', 'r': 'ʀ', 's': 'ꜱ', 't': 'ᴛ',
+        'u': 'ᴜ', 'v': 'ᴠ', 'w': 'ᴡ', 'x': 'x', 'y': 'ʏ',
+        'z': 'ᴢ'
+    }
+    result = ""
+    for char in text:
+        if char.lower() in mapping:
+            result += mapping[char.lower()]
+        else:
+            result += char
+    return result
+
+# Helper function to send reply messages in small caps
+async def reply_small(event, text, **kwargs):
+    return await event.reply(to_small_caps(text), **kwargs)
+
 # Telegram client
 app = TelegramClient('bot', api_id=API_ID, api_hash=API_HASH)
 
@@ -90,10 +115,7 @@ async def check_owner_fsub(user_id):
                 await app(GetParticipantRequest(channel=channel_entity, participant=user_id))
         except UserNotParticipantError:
             try:
-                if isinstance(channel_id, int):
-                    channel = await app.get_entity(channel_id)
-                else:
-                    channel = await app.get_entity(channel_id)
+                channel = await app.get_entity(channel_id)
                 missing_subs.append(channel)
             except Exception as e:
                 logger.error(f"Error getting channel {channel_id}: {e}")
@@ -109,23 +131,28 @@ def check_fsub(func):
         if event.text and event.text.startswith('/'):
             missing_owner_subs = await check_owner_fsub(user_id)
             if missing_owner_subs is not True:
-                buttons = []
+                # Arrange join buttons in 2x2 grid
+                buttons_list = []
                 for channel in missing_owner_subs:
                     if hasattr(channel, 'username') and channel.username:
-                        buttons.append([Button.url(f"๏ Join ๏", f"https://t.me/{channel.username}")])
+                        buttons_list.append(Button.url("๏ ᴊᴏɪⁿ ๏", f"https://t.me/{channel.username}"))
                     else:
                         try:
                             invite = await app(ExportChatInviteRequest(channel))
-                            buttons.append([Button.url(f"๏ Join ๏", invite.link)])
+                            buttons_list.append(Button.url("๏ ᴊᴏɪⁿ ๏", invite.link))
                         except Exception as e:
                             logger.error(f"Error creating invite for {channel.id}: {e}")
                             continue
+                # Create 2x2 grid
+                rows = [buttons_list[i:i+2] for i in range(0, len(buttons_list), 2)]
                 await event.reply(
-                    "**⚠️ ᴀᴄᴄᴇss ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
-                    "**ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
-                    "**ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴊᴏɪɴ**\n"
-                    "**ᴛʜᴇɴ ᴛʀʏ ᴀɢᴀɪɴ!**",
-                    buttons=buttons
+                    to_small_caps(
+                        "**⚠️ ᴀᴄᴄᴇss ʀᴇsᴛʀɪᴄᴛᴇᴅ ⚠️**\n\n"
+                        "**ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪⁿ ᴏᴜʀ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴜsᴇ ᴛʜᴇ ʙᴏᴛ!**\n"
+                        "**ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴊᴏɪⁿ**\n"
+                        "**ᴛʜᴇɴ ᴛʀʏ ᴀɢᴀɪɴ!**"
+                    ),
+                    buttons=rows
                 )
                 return
         return await func(event)
@@ -145,74 +172,7 @@ async def is_command_for_me(event):
         logger.error(f"Error checking command target: {e}")
         return True
 
-@app.on(events.ChatAction)
-async def handle_added_to_chat(event):
-    print(dir(event))
-    if hasattr(event, 'user_left') and event.user_left:
-        me = await app.get_me()
-        if event.user_id == me.id:
-            await remove_group(event.chat_id)
-    if event.user_added:
-        me = await app.get_me()
-        if event.user_id == me.id:
-            chat = await event.get_chat()
-            await add_group(chat.id)
-            if chat.username:
-                chat_link = f"https://t.me/{chat.username}"
-            else:
-                chat_link = "Private Group"
-            await app.send_message(
-                LOGGER_ID,
-                f"**🔔 ʙᴏᴛ ᴀᴅᴅᴇᴅ ᴛᴏ ɴᴇᴡ ᴄʜᴀᴛ**\n\n"
-                f"**ᴄʜᴀᴛ ɴᴀᴍᴇ:** {chat.title}\n"
-                f"**ᴄʜᴀᴛ ɪᴅ:** `{chat.id}`\n"
-                f"**ʟɪɴᴋ:** {chat_link}"
-            )
-
-@app.on(events.NewMessage(pattern=r"^/start(?:@\w+)?$"))
-@check_fsub
-async def start(event):
-    if not await is_command_for_me(event):
-        return
-    user_id = event.sender_id
-    await add_user(user_id)
-    user = await event.get_sender()
-    await app.send_message(
-        LOGGER_ID,
-        f"**🆕 ɴᴇᴡ ᴜsᴇʀ sᴛᴀʀᴛᴇᴅ ᴛʜᴇ ʙᴏᴛ**\n\n"
-        f"**ɴᴀᴍᴇ:** {user.first_name}\n"
-        f"**ᴜsᴇʀɴᴀᴍᴇ:** @{user.username}\n"
-        f"**ᴜsᴇʀ ɪᴅ:** `{user.id}`"
-    )
-    await event.reply(
-        "**👋 ʜᴇʟʟᴏ! ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ʙᴏᴛ.**\n\n"
-        "**➲ ᴜsᴇ ᴛʜɪs ʙᴏᴛ ᴛᴏ ᴇɴғᴏʀᴄᴇ ᴜsᴇʀs ᴛᴏ ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟs ᴏʀ ɢʀᴏᴜᴘs ʙᴇғᴏʀᴇ ᴛʜᴇʏ ᴄᴀɴ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴀ ɢʀᴏᴜᴘ.**\n\n"
-        "**➲ ᴛʏᴘᴇ /help ғᴏʀ ᴍᴏʀᴇ ɪɴғᴏʀᴍᴀᴛɪᴏɴ.**"
-    )
-
-@app.on(events.NewMessage(pattern=r"^/help(?:@\w+)?$"))
-@check_fsub
-async def help(event):
-    if not await is_command_for_me(event):
-        return
-    await event.reply(
-        "**📖 ʜᴇʟᴘ ᴍᴇɴᴜ:**\n\n"
-        "**/set <ᴄʜᴀɴɴᴇʟ ᴜsᴇʀɴᴀᴍᴇ ᴏʀ ɪᴅ ᴏʀ ʟɪɴᴋ> (ᴜᴘ ᴛᴏ 4)** - ᴛᴏ sᴇᴛ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ғᴏʀ ᴀ ɢʀᴏᴜᴘ.\n"
-        "**/fsub** - ᴛᴏ ᴍᴀɴᴀɢᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ (ᴏɴ/ᴏғғ).\n"
-        "**/reset** - ᴛᴏ ʀᴇsᴇᴛ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴀɴᴅ ʀᴇᴍᴏᴠᴇ ᴀʟʟ ᴄʜᴀɴɴᴇʟs.\n"
-        "**/start** - ᴛᴏ ᴅɪsᴘʟᴀʏ ᴛʜᴇ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ.\n"
-        "**/help** - ᴛᴏ ᴅɪsᴘʟᴀʏ ᴛʜᴇ ʜᴇʟᴘ ᴍᴇɴᴜ.\n"
-        "**/stats** - ᴛᴏ ᴠɪᴇᴡ ʙᴏᴛ sᴛᴀᴛɪsᴛɪᴄs.\n"
-        "**/broadcast <ᴍᴇssᴀɢᴇ>** - ᴛᴏ ʙʀᴏᴀᴅᴄᴀsᴛ ᴀ ᴍᴇssᴀɢᴇ ᴛᴏ ᴀʟʟ ᴜsᴇʀs.\n"
-        "**/ban <ᴜsᴇʀ ɪᴅ>** - ᴛᴏ ʙᴀɴ ᴀ ᴜsᴇʀ.\n"
-        "**/unban <ᴜsᴇʀ ɪᴅ>** - ᴛᴏ ᴜɴʙᴀɴ ᴀ ᴜsᴇʀ.\n\n"
-        "**➲ ᴛʜᴇsᴇ ᴄᴏᴍᴍᴀɴᴅs ᴏɴʟʏ ᴡᴏʀᴋ ɪɴ ɢʀᴏᴜᴘs:**\n"
-        "**/set** - ᴛᴏ sᴇᴛ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ.\n"
-        "**/fsub** - ᴛᴏ ᴍᴀɴᴀɢᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ.\n"
-        "**/reset** - ᴛᴏ ʀᴇsᴇᴛ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ.\n\n"
-        "**➲ ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜᴇsᴇ ᴄᴏᴍᴍᴀɴᴅs.**"
-    )
-
+# Global admin check function
 async def is_admin_or_owner(chat_id, user_id):
     try:
         member = await app.get_permissions(chat_id, user_id)
@@ -223,6 +183,83 @@ async def is_admin_or_owner(chat_id, user_id):
         logger.error(f"Error checking admin status: {e}")
         return False
 
+# When bot is added to a chat (group)
+@app.on(events.ChatAction)
+async def handle_added_to_chat(event):
+    me = await app.get_me()
+    if hasattr(event, 'user_left') and event.user_left:
+        if event.user_id == me.id:
+            await remove_group(event.chat_id)
+    if event.user_added:
+        if event.user_id == me.id:
+            chat = await event.get_chat()
+            await add_group(chat.id)
+            chat_link = f"https://t.me/{chat.username}" if chat.username else "Private Group"
+            # Log message to LOGGER_ID
+            await app.send_message(
+                LOGGER_ID,
+                to_small_caps(
+                    f"**🔔 ʙᴏᴛ ᴀᴅᴅᴇᴅ ᴛᴏ ɴᴇᴡ ᴄʜᴀᴛ**\n\n"
+                    f"**ᴄʜᴀᴛ ɴᴀᴍᴇ:** {chat.title}\n"
+                    f"**ᴄʜᴀᴛ ɪᴅ:** `{chat.id}`\n"
+                    f"**ʟɪɴᴋ:** {chat_link}"
+                )
+            )
+            # Send introduction message to group about bot and required permissions
+            intro_text = (
+                "ʜᴇʟʟᴏ, ɪ ᴀᴍ ᴛʜᴇ ʙᴏᴛ.\n"
+                "ᴛʜᴀɴᴋs ᴛᴏ ʏᴏᴜ ғᴏʀ ᴀᴅᴅɪɴɢ ᴍᴇ.\n"
+                "ᴘʟᴇᴀsᴇ ᴇɴɢᴀɢᴇ ᴍᴇ ᴡɪᴛʜ ᴍʏ ғᴇᴀᴛᴜʀᴇs.\n"
+                "ɪ ʀᴇǫᴜɪʀᴇ ᴘᴇʀᴍɪssɪᴏɴs: ᴍᴇssᴀɢᴇ ᴍᴀɴᴀɢᴇᴍᴇɴᴛ, ᴅᴇʟᴇᴛᴇ ᴍᴇssᴀɢᴇs, ᴘɪɴ ᴍᴇssᴀɢᴇs."
+            )
+            await app.send_message(chat.id, to_small_caps(intro_text))
+
+@app.on(events.NewMessage(pattern=r"^/start(?:@\w+)?$"))
+@check_fsub
+async def start(event):
+    if not await is_command_for_me(event):
+        return
+    user_id = event.sender_id
+    await add_user(user_id)
+    user = await event.get_sender()
+    # Log new user start
+    await app.send_message(
+        LOGGER_ID,
+        to_small_caps(
+            f"**🆕 ɴᴇᴡ ᴜsᴇʀ sᴛᴀʀᴛᴇᴅ ᴛʜᴇ ʙᴏᴛ**\n\n"
+            f"**ɴᴀᴍᴇ:** {user.first_name}\n"
+            f"**ᴜsᴇʀɴᴀᴍᴇ:** @{user.username}\n"
+            f"**ᴜsᴇʀ ɪᴅ:** `{user.id}`"
+        )
+    )
+    # Updated start message with 4 buttons in 1,2,1 layout
+    start_text = (
+        "ʜᴇʟʟᴏ! ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴛʜᴇ ʙᴏᴛ.\n"
+        "ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ."
+    )
+    start_buttons = [
+        [Button.inline("ᴀᴅᴅ ᴛᴇᴀᴍ", b"add_team")],
+        [Button.inline("ᴜᴘᴅᴀᴛᴇ", b"update"), Button.inline("ꜱᴜᴘᴘᴏʀᴛ", b"support")],
+        [Button.url("ᴏᴡɴᴇʀ", "https://t.me/owner")]
+    ]
+    await event.reply(to_small_caps(start_text), buttons=start_buttons)
+
+@app.on(events.NewMessage(pattern=r"^/help(?:@\w+)?$"))
+@check_fsub
+async def help(event):
+    if not await is_command_for_me(event):
+        return
+    help_text = (
+        "📖 ʜᴇʟᴘ ᴍᴇɴᴜ:\n\n"
+        "/set <ᴄʜᴀɴɴᴇʟ ᴜsᴇʀɴᴀᴍᴇ/ɪᴅ/ʟɪɴᴋ> (ᴜᴘ ᴛᴏ 4) - sᴇᴛ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ.\n"
+        "/fsub - ᴍᴀɴᴀɢᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ (ᴏɴ/ᴏғғ).\n"
+        "/reset - ʀᴇsᴇᴛ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴀɴᴅ ʀᴇᴍᴏᴠᴇ ᴄʜᴀɴɴᴇʟs.\n"
+        "/stats - ᴠɪᴇᴡ ʙᴏᴛ sᴛᴀᴛɪsᴛɪᴄs.\n"
+        "/broadcast <ᴍᴇssᴀɢᴇ> - ʙʀᴏᴀᴅᴄᴀsᴛ ᴍᴇssᴀɢᴇ ᴛᴏ ᴜsᴇʀs.\n"
+        "/ban <ᴜsᴇʀ ɪᴅ> /unban <ᴜsᴇʀ ɪᴅ> - ʙᴀɴ/ᴜɴʙᴀɴ ᴜsᴇʀs."
+    )
+    await reply_small(event, help_text)
+
 @app.on(events.NewMessage(pattern=r"^/set(?:@\w+)?( .+)?$", func=lambda e: e.is_group))
 @check_fsub
 async def set_forcesub(event):
@@ -231,27 +268,17 @@ async def set_forcesub(event):
     chat_id = event.chat_id
     user_id = event.sender_id
 
-    async def is_admin_or_owner(chat_id, user_id):
-        try:
-            member = await app.get_permissions(chat_id, user_id)
-            return member.is_admin or member.is_creator or user_id == OWNER_ID
-        except ChatAdminRequiredError:
-            return False
-        except Exception as e:
-            logger.error(f"Error checking admin status: {e}")
-            return False
-
     if not await is_admin_or_owner(chat_id, user_id):
-        return await event.reply("**ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
+        return await reply_small(event, "ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs/ᴀᴅᴍɪɴs ᴏʀ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.")
 
     await add_group(chat_id)
     command = event.pattern_match.group(1)
     if not command:
-        return await event.reply("**ᴜsᴀɢᴇ: /set <ᴄʜᴀɴɴᴇʟ ᴜsᴇʀɴᴀᴍᴇ ᴏʀ ɪᴅ ᴏʀ ʟɪɴᴋ> (ᴜᴘ ᴛᴏ 4)**")
+        return await reply_small(event, "ᴜsᴀɢᴇ: /set <ᴄʜᴀɴɴᴇʟ ᴜsᴇʀɴᴀᴍᴇ/ɪᴅ/ʟɪɴᴋ> (ᴜᴘ ᴛᴏ 4)")
 
     channels = command.strip().split()
     if len(channels) > 4:
-        return await event.reply("**🚫 ʏᴏᴜ ᴄᴀɴ ᴏɴʟʏ ᴀᴅᴅ ᴜᴘ ᴛᴏ 4 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴs.**")
+        return await reply_small(event, "🚫 ʏᴏᴜ ᴄᴀɴ ᴏɴʟʏ ᴀᴅᴅ ᴜᴘ ᴛᴏ 4 ғᴏʀ ᴄʜᴀɴɴᴇʟs.")
 
     fsub_data = []
     for channel_input in channels:
@@ -281,7 +308,7 @@ async def set_forcesub(event):
             })
         except Exception as e:
             logger.error(f"Error fetching channel info for {channel_input}: {e}")
-            return await event.reply(f"**🚫 ғᴀɪʟᴇᴅ ᴛᴏ ғᴇᴛᴄʜ ᴅᴀᴛᴀ ғᴏʀ {channel_input}.**")
+            return await reply_small(event, f"🚫 ғᴀɪʟᴇᴅ ᴛᴏ ғᴇᴛᴄʜ ᴅᴀᴛᴀ ғᴏʀ {channel_input}.")
 
     await forcesub_collection.update_one(
         {"chat_id": chat_id},
@@ -294,60 +321,42 @@ async def set_forcesub(event):
 
     if len(fsub_data) == 1:
         channel_info = fsub_data[0]
-        await event.reply(
-            f"**🎉 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ sᴇᴛ ᴛᴏ** [{channel_info['title']}]({channel_info['username']}) **ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ.**\n\n"
-            f"**🆔 ᴄʜᴀɴɴᴇʟ ɪᴅ:** `{channel_info['id']}`\n"
-            f"**🖇️ ᴄʜᴀɴɴᴇʟ ʟɪɴᴋ:** [ɢᴇᴛ ʟɪɴᴋ]({channel_info['link']})\n"
-            f"**👤 sᴇᴛ ʙʏ:** {set_by_user}"
+        await reply_small(
+            event,
+            f"🎉 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ sᴇᴛ ᴛᴏ [{channel_info['title']}]({channel_info['username']}) ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ.\n\n"
+            f"🆔 ᴄʜᴀɴɴᴇʟ ɪᴅ: `{channel_info['id']}`\n"
+            f"🖇️ ᴄʜᴀɴɴᴇʟ ʟɪɴᴋ: [ɢᴇᴛ ʟɪɴᴋ]({channel_info['link']})\n"
+            f"👤 sᴇᴛ ʙʏ: {set_by_user}"
         )
     else:
-        await event.reply(f"**🎉 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ sᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n{channel_list}")
+        await reply_small(event, f"🎉 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ sᴇᴛ ᴛᴏ ᴛʜɪs ɢʀᴏᴜᴘ:\n\n{channel_list}")
 
 @app.on(events.NewMessage(pattern=r"^/fsub(?:@\w+)?$", func=lambda e: e.is_group))
 @check_fsub
 async def manage_forcesub(event):
     if not await is_command_for_me(event):
         return
-    try:
-        chat_id = event.chat_id
-        user_id = event.sender_id
+    chat_id = event.chat_id
+    user_id = event.sender_id
 
-        async def is_admin_or_owner(chat_id, user_id):
-            try:
-                member = await app.get_permissions(chat_id, user_id)
-                return member.is_admin or member.is_creator or user_id == OWNER_ID
-            except ChatAdminRequiredError:
-                return False
-            except Exception as e:
-                logger.error(f"Error checking admin status: {e}")
-                return False
+    if not await is_admin_or_owner(chat_id, user_id):
+        return await reply_small(event, "ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs/ᴀᴅᴍɪɴs ᴏʀ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.")
 
-        if not await is_admin_or_owner(chat_id, user_id):
-            return await event.reply("**ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
+    forcesub_data = await forcesub_collection.find_one({"chat_id": chat_id})
+    if not forcesub_data or not forcesub_data.get("channels") or not forcesub_data.get("enabled", True):
+        return await reply_small(event, "🚫 ɴᴏ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ɪs sᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ.")
 
-        forcesub_data = await forcesub_collection.find_one({"chat_id": chat_id})
-        if not forcesub_data or not forcesub_data.get("channels") or not forcesub_data.get("enabled", True):
-            return await event.reply("**🚫 ɴᴏ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ɪs sᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ.**")
-
-        channel_list = "\n".join([f"**{c['title']}** ({c['username']})" for c in forcesub_data["channels"]])
-        is_enabled = forcesub_data.get("enabled", True)
-        
-        callback_data = f"fsub_toggle_{chat_id}_{1 if not is_enabled else 0}"
-        
-        buttons = [[Button.inline(
-            "🔴 ᴛᴜʀɴ ᴏғғ" if is_enabled else "🟢 ᴛᴜʀɴ ᴏɴ", 
-            callback_data
-        )]]
-
-        await event.reply(
-            f"**📊 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n"
-            f"{channel_list}\n\n"
-            f"**ᴄᴜʀʀᴇɴᴛ sᴛᴀᴛᴜs:** {'🟢 ᴏɴ' if is_enabled else '🔴 ᴏғғ'}",
-            buttons=buttons
-        )
-    except Exception as e:
-        logger.error(f"Error in manage_forcesub: {str(e)}")
-        await event.reply("**❌ An error occurred while processing the command.**")
+    channel_list = "\n".join([f"**{c['title']}** ({c['username']})" for c in forcesub_data["channels"]])
+    is_enabled = forcesub_data.get("enabled", True)
+    
+    callback_data = f"fsub_toggle_{chat_id}_{1 if not is_enabled else 0}"
+    await reply_small(
+        event,
+        f"📊 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ:\n\n"
+        f"{channel_list}\n\n"
+        f"ᴄᴜʀʀᴇɴᴛ sᴛᴀᴛᴜs: {'🟢 ᴏɴ' if is_enabled else '🔴 ᴏғғ'}",
+        buttons=[[Button.inline("🔴 ᴛᴜʀɴ ᴏғғ" if is_enabled else "🟢 ᴛᴜʀɴ ᴏɴ", callback_data)]]
+    )
 
 @app.on(events.CallbackQuery(pattern=r"fsub_toggle_(\-?\d+)_([01])"))
 async def toggle_forcesub(event):
@@ -358,22 +367,12 @@ async def toggle_forcesub(event):
         
         logger.info(f"Toggle callback received: chat_id={chat_id}, new_state={new_state}, user_id={user_id}")
 
-        async def is_admin_or_owner(chat_id, user_id):
-            try:
-                member = await app.get_permissions(chat_id, user_id)
-                return member.is_admin or member.is_creator or user_id == OWNER_ID
-            except ChatAdminRequiredError:
-                return False
-            except Exception as e:
-                logger.error(f"Error checking admin status: {e}")
-                return False
-
         if not await is_admin_or_owner(chat_id, user_id):
-            return await event.answer("**ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs.**", alert=True)
+            return await event.answer(to_small_caps("ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs/ᴀᴅᴍɪɴs ᴏʀ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs."), alert=True)
 
         forcesub_data = await forcesub_collection.find_one({"chat_id": chat_id})
         if not forcesub_data:
-            return await event.answer("**ɴᴏ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ɪs sᴇᴛ.**", alert=True)
+            return await event.answer(to_small_caps("ɴᴏ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ɪs sᴇᴛ."), alert=True)
 
         await forcesub_collection.update_one(
             {"chat_id": chat_id},
@@ -383,27 +382,24 @@ async def toggle_forcesub(event):
 
         channel_list = "\n".join([f"**{c['title']}** ({c['username']})" for c in forcesub_data["channels"]])
         next_state = not new_state
-        new_buttons = [[Button.inline(
-            "🔴 ᴛᴜʀɴ ᴏғғ" if new_state else "🟢 ᴛᴜʀɴ ᴏɴ",
-            f"fsub_toggle_{chat_id}_{1 if next_state else 0}"
-        )]]
-
+        new_buttons = [[Button.inline("🔴 ᴛᴜʀɴ ᴏғғ" if new_state else "🟢 ᴛᴜʀɴ ᴏɴ",
+                            f"fsub_toggle_{chat_id}_{1 if next_state else 0}")]]
+    
         await event.edit(
-            f"**📊 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n"
-            f"{channel_list}\n\n"
-            f"**ᴄᴜʀʀᴇɴᴛ sᴛᴀᴛᴜs:** {'🟢 ᴏɴ' if new_state else '🔴 ᴏғғ'}",
+            to_small_caps(
+                f"📊 ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ:\n\n"
+                f"{channel_list}\n\n"
+                f"ᴄᴜʀʀᴇɴᴛ sᴛᴀᴛᴜs: {'🟢 ᴏɴ' if new_state else '🔴 ᴏғғ'}"
+            ),
             buttons=new_buttons
         )
         
-        await event.answer(
-            f"**✅ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ {new_state and 'enabled' or 'disabled'} sᴜᴄᴄᴇssғᴜʟʟʏ!**",
-            alert=True
-        )
+        await event.answer(to_small_caps(f"✅ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ {'enabled' if new_state else 'disabled'} sᴜᴄᴄᴇssғᴜʟʟʏ!"), alert=True)
         logger.info(f"Toggle complete for chat {chat_id}, new state: {new_state}")
         
     except Exception as e:
         logger.error(f"Error in toggle_forcesub: {str(e)}")
-        await event.answer("**❌ An error occurred while processing your request.**", alert=True)
+        await event.answer(to_small_caps("❌ ᴀɴ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀᴇᴅ."), alert=True)
 
 @app.on(events.NewMessage(pattern=r"^/reset(?:@\w+)?$", func=lambda e: e.is_group))
 @check_fsub
@@ -413,22 +409,11 @@ async def reset_forcesub(event):
     chat_id = event.chat_id
     user_id = event.sender_id
 
-    async def is_admin_or_owner(chat_id, user_id):
-        try:
-            member = await app.get_permissions(chat_id, user_id)
-            return member.is_admin or member.is_creator or user_id == OWNER_ID
-        except ChatAdminRequiredError:
-            return False
-        except Exception as e:
-            logger.error(f"Error checking admin status: {e}")
-            return False
-
     if not await is_admin_or_owner(chat_id, user_id):
-        return await event.reply("**ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs, ᴀᴅᴍɪɴs ᴏʀ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
-
+        return await reply_small(event, "ᴏɴʟʏ ɢʀᴏᴜᴘ ᴏᴡɴᴇʀs/ᴀᴅᴍɪɴs ᴏʀ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.")
     await remove_group(chat_id)
     await forcesub_collection.delete_one({"chat_id": chat_id})
-    await event.reply("**✅ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ʜᴀs ʙᴇᴇɴ ʀᴇsᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ.**")
+    await reply_small(event, "✅ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ʜᴀs ʙᴇᴇɴ ʀᴇsᴇᴛ ғᴏʀ ᴛʜɪs ɢʀᴏᴜᴘ.")
 
 @app.on(events.NewMessage(pattern=r"^/stats(?:@\w+)?$"))
 @check_fsub
@@ -436,17 +421,17 @@ async def stats(event):
     if not await is_command_for_me(event):
         return
     if event.sender_id != OWNER_ID:
-        return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
-
+        return await reply_small(event, "🚫 ᴏɴʟʏ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.")
     total_users = len(await get_all_users())
     total_groups = len(await get_all_groups())
     banned_users = await banned_users_collection.count_documents({})
-    await event.reply(
-        f"**📊 ʙᴏᴛ sᴛᴀᴛɪsᴛɪᴄs:**\n\n"
-        f"**➲ ᴛᴏᴛᴀʟ ᴜsᴇʀs:** {total_users}\n"
-        f"**➲ ᴛᴏᴛᴀʟ ɢʀᴏᴜᴘs:** {total_groups}\n"
-        f"**➲ ʙᴀɴɴᴇᴅ ᴜsᴇʀs:** {banned_users}"
+    stats_text = (
+        "📊 ʙᴏᴛ sᴛᴀᴛɪsᴛɪᴄs:\n\n"
+        f"➲ ᴛᴏᴛᴀʟ ᴜsᴇʀs: {total_users}\n"
+        f"➲ ᴛᴏᴛᴀʟ ɢʀᴏᴜᴘs: {total_groups}\n"
+        f"➲ ʙᴀɴɴᴇᴅ ᴜsᴇʀs: {banned_users}"
     )
+    await reply_small(event, stats_text)
 
 @app.on(events.NewMessage(pattern=r"^/ban(?:@\w+)? (\d+)$"))
 @check_fsub
@@ -454,10 +439,10 @@ async def ban_user(event):
     if not await is_command_for_me(event):
         return
     if event.sender_id != OWNER_ID:
-        return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
+        return await reply_small(event, "🚫 ᴏɴʟʏ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.")
     user_id = int(event.pattern_match.group(1))
     await banned_users_collection.insert_one({"user_id": user_id})
-    await event.reply(f"**✅ ᴜsᴇʀ {user_id} ʜᴀs ʙᴇᴇɴ ʙᴀɴɴᴇᴅ.**")
+    await reply_small(event, f"✅ ᴜsᴇʀ {user_id} ʜᴀs ʙᴇᴇɴ ʙᴀɴɴᴇᴅ.")
 
 @app.on(events.NewMessage(pattern=r"^/unban(?:@\w+)? (\d+)$"))
 @check_fsub
@@ -465,10 +450,10 @@ async def unban_user(event):
     if not await is_command_for_me(event):
         return
     if event.sender_id != OWNER_ID:
-        return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
+        return await reply_small(event, "🚫 ᴏɴʟʏ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.")
     user_id = int(event.pattern_match.group(1))
     await banned_users_collection.delete_one({"user_id": user_id})
-    await event.reply(f"**✅ ᴜsᴇʀ {user_id} ʜᴀs ʙᴇᴇɴ ᴜɴᴀʙɴᴇᴅ.**")
+    await reply_small(event, f"✅ ᴜsᴇʀ {user_id} ʜᴀs ʙᴇᴇɴ ᴜɴᴀʙɴᴇᴅ.")
 
 @app.on(events.NewMessage(pattern=r"^/(broadcast|gcast)(?:@\w+)?( .*)?$"))
 @check_fsub
@@ -476,12 +461,12 @@ async def broadcast(event):
     if not await is_command_for_me(event):
         return
     if event.sender_id != OWNER_ID:
-        return await event.reply("**🚫 ᴏɴʟʏ ᴛʜᴇ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
+        return await reply_small(event, "🚫 ᴏɴʟʏ ʙᴏᴛ ᴏᴡɴᴇʀ ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.")
     reply = event.reply_to_message if hasattr(event, 'reply_to_message') else None
     text = event.pattern_match.group(2)
     if not reply and not text:
-        return await event.reply("**❖ ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴍᴇssᴀɢᴇ ᴏʀ ᴘʀᴏᴠɪᴅᴇ ᴛᴇxᴛ ᴛᴏ ʙʀᴏᴀᴅᴄᴀsᴛ.**")
-    progress_msg = await event.reply("**❖ ʙʀᴏᴀᴅᴄᴀsᴛɪɴɢ ᴍᴇssᴀɢᴇ ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ...**")
+        return await reply_small(event, "❖ ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴍᴇssᴀɢᴇ ᴏʀ ᴘʀᴏᴠɪᴅᴇ ᴛᴇxᴛ ᴛᴏ ʙʀᴏᴀᴅᴄᴀsᴛ.")
+    progress_msg = await event.reply(to_small_caps("❖ ʙʀᴏᴀᴅᴄᴀsᴛɪɴɢ ᴍᴇssᴀɢᴇ ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ..."))
     sent_groups, sent_users, failed, pinned = 0, 0, 0, 0
     users = await get_all_users()
     groups = await get_all_groups()
@@ -506,17 +491,19 @@ async def broadcast(event):
             logger.error(f"Failed to send broadcast to {chat_id}: {e}")
             failed += 1
     await progress_msg.edit(
-        f"**✅ ʙʀᴏᴀᴅᴄᴀsᴛ ᴄᴏᴍᴍʀᴇᴛᴇᴅ.**\n\n"
-        f"**👥 ɢʀᴏᴜᴘs sᴇɴᴛ:** {sent_groups}\n"
-        f"**🧑‍💻 ᴜsᴇʀs sᴇɴᴛ:** {sent_users}\n"
-        f"**📌 ᴘɪɴɴᴇᴅ:** {pinned}\n"
-        f"**❌ ғᴀɪʟᴇᴅ:** {failed}"
+        to_small_caps(
+            f"✅ ʙʀᴏᴀᴅᴄᴀsᴛ ᴄᴏᴍᴍʀᴇᴛᴇᴅ.\n\n"
+            f"👥 ɢʀᴏᴜᴘs sᴇɴᴛ: {sent_groups}\n"
+            f"🧑‍💻 ᴜsᴇʀs sᴇɴᴛ: {sent_users}\n"
+            f"📌 ᴘɪɴɴᴇᴅ: {pinned}\n"
+            f"❌ ғᴀɪʟᴇᴅ: {failed}"
+        )
     )
 
 @app.on(events.NewMessage(func=lambda e: e.is_private))
 async def check_ban(event):
     if await banned_users_collection.find_one({"user_id": event.sender_id}):
-        return await event.reply("**🚫 ʏᴏᴜ ᴀʀᴇ ʙᴀɴɴᴇᴅ ғʀᴏᴍ ᴜsɪɴɢ ᴛʜɪs ʙᴏᴛ.**")
+        return await reply_small(event, "🚫 ʏᴏᴜ ᴀʀᴇ ʙᴀɴɴᴇᴅ ғʀᴏᴍ ᴜsɪɴɢ ᴛʜɪs ʙᴏᴛ.")
 
 @app.on(events.NewMessage)
 async def handle_new_message(event):
@@ -525,11 +512,12 @@ async def handle_new_message(event):
     elif event.is_group:
         await add_group(event.chat_id)
 
+# Force subscription check handler with DM greeting upon successful join
 @app.on(events.NewMessage)
 async def check_fsub_handler(event):
     if hasattr(event, '_fsub_checked'):
         return
-        
+
     user_id = event.sender_id
     if event.is_group:
         chat_id = event.chat_id
@@ -538,7 +526,6 @@ async def check_fsub_handler(event):
             return
 
         is_member = True
-        non_member_channel = None
         for channel in forcesub_data["channels"]:
             try:
                 if isinstance(channel["id"], int):
@@ -548,13 +535,11 @@ async def check_fsub_handler(event):
                     await app(GetParticipantRequest(channel=channel_entity, participant=user_id))
             except UserNotParticipantError:
                 is_member = False
-                non_member_channel = channel
                 break
             except Exception as e:
                 if "Could not find the input entity" in str(e):
                     logger.warning(f"Could not check user {user_id} in channel {channel['id']}: {e}")
                     is_member = False
-                    non_member_channel = channel
                     break
                 else:
                     logger.error(f"An error occurred while checking user participation: {e}")
@@ -566,30 +551,30 @@ async def check_fsub_handler(event):
             except Exception as e:
                 logger.error(f"Could not delete message: {e}")
             try:
-                buttons = []
-                for c in forcesub_data['channels']:
-                    try:
-                        if c.get('link') and c.get('title'):
-                            buttons.append([Button.url(f"๏ ᴊᴏɪɴ ๏", c['link'])])
-                    except Exception as e:
-                        logger.error(f"Error creating button for channel {c.get('id', 'unknown')}: {e}")
-                if buttons:
-                    # Use .format() to avoid nested f-string issues
-                    channel_lines = ["๏ [{}]({})".format(c["title"], c["link"]) for c in forcesub_data["channels"] if c.get("title") and c.get("link")]
+                buttons_list = [Button.url("๏ ᴊᴏɪⁿ ๏", c['link']) for c in forcesub_data['channels'] if c.get("link") and c.get("title")]
+                rows = [buttons_list[i:i+2] for i in range(0, len(buttons_list), 2)]
+                channel_lines = ["๏ [{}]({})".format(c["title"], c["link"]) for c in forcesub_data["channels"] if c.get("title") and c.get("link")]
+                if rows:
                     await event.reply(
-                        f"**👋 ʜᴇʟʟᴏ {event.sender.first_name},**\n\n"
-                        f"**ʏᴏᴜ ɴᴇᴇᴅ ᴊᴏɪɴ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ:**\n\n"
-                        f"{chr(10).join(channel_lines)}",
-                        buttons=buttons
-                    )
-                else:
-                    await event.reply(
-                        f"**👋 ʜᴇʟʟᴏ {event.sender.first_name},**\n\n"
-                        f"**ʏᴏᴜ ɴᴇᴇᴅ ᴊᴏɪɴ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ.**"
+                        to_small_caps(
+                            f"👋 ʜᴇʟʟᴏ {event.sender.first_name},\n\n"
+                            f"ʏᴏᴜ ɴᴇᴇᴅ ᴊᴏɪɴ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴛʜɪs ɢʀᴏᴜᴘ:\n\n"
+                            + "\n".join(channel_lines)
+                        ),
+                        buttons=rows
                     )
             except Exception as e:
                 logger.error(f"An error occurred while sending the force sub message: {e}")
             return
+        else:
+            # If user is a member and not greeted before, send DM thanking for join
+            if user_id not in greeted_users:
+                try:
+                    await app.send_message(user_id, to_small_caps("ʟɪᴋᴇ ᴛx ғᴏʀ ᴊᴏɪɴ"))
+                    greeted_users.add(user_id)
+                except Exception as e:
+                    logger.error(f"Error sending DM for join: {e}")
+    setattr(event, '_fsub_checked', True)
 
 async def startup_notification():
     try:
@@ -597,12 +582,14 @@ async def startup_notification():
         total_groups = len(await get_all_groups())
         await app.send_message(
             LOGGER_ID,
-            "**✅ ʙᴏᴛ ʜᴀs sᴛᴀʀᴛᴇᴅ sᴜᴄᴄᴇssғᴜʀʀʏ!**\n\n"
-            f"**ʙᴏᴛ ɪɴғᴏ:**\n"
-            f"**➲ ᴏᴡɴᴇʀ ɪᴅ:** `{OWNER_ID}`\n"
-            f"**➲ ʟᴏɢɢᴇʀ ɪᴅ:** `{LOGGER_ID}`\n"
-            f"**➲ ᴛᴏᴛᴀʟ ᴜsᴇʀs:** `{total_users}`\n"
-            f"**➲ ᴛᴏᴛᴀʟ ɢʀᴏᴜᴘs:** `{total_groups}`"
+            to_small_caps(
+                f"✅ ʙᴏᴛ ʜᴀs sᴛᴀʀᴛᴇᴅ sᴜᴄᴄᴇssғᴜʀʀʏ!\n\n"
+                f"ʙᴏᴛ ɪɴғᴏ:\n"
+                f"➲ ᴏᴡɴᴇʀ ɪᴅ: `{OWNER_ID}`\n"
+                f"➲ ʟᴏɢɢᴇʀ ɪᴅ: `{LOGGER_ID}`\n"
+                f"➲ ᴛᴏᴛᴀʟ ᴜsᴇʀs: `{total_users}`\n"
+                f"➲ ᴛᴏᴛᴀʟ ɢʀᴏᴜᴘs: `{total_groups}`"
+            )
         )
     except Exception as e:
         logger.error(f"Error sending startup notification: {e}")
