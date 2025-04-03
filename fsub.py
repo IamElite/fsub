@@ -19,12 +19,6 @@ API_ID = int(os.getenv("API_ID", "0"))
 API_HASH = os.getenv("API_HASH", None)
 FSUB = os.getenv("FSUB", "").strip()
 
-# URLs for /start buttons
-ADD_TEAM_URL = os.getenv("ADD_TEAM_URL", "https://t.me/YourAddTeamLink")
-UPDATE_URL = os.getenv("UPDATE_URL", "https://t.me/YourUpdateLink")
-SUPPORT_URL = os.getenv("SUPPORT_URL", "https://t.me/YourSupportLink")
-OWNER_URL = os.getenv("OWNER_URL", "https://t.me/YourOwnerLink")
-
 # Telegram client
 app = TelegramClient('bot', api_id=API_ID, api_hash=API_HASH)
 
@@ -201,11 +195,11 @@ async def start(event):
         f"**ᴜsᴇʀɴᴀᴍᴇ:** @{user.username}\n"
         f"**ᴜsᴇʀ ɪᴅ:** `{user.id}`"
     )
-    # 4 buttons arranged as 1,2,1
+    # Updated /start buttons (1,2,1 layout)
     buttons = [
-        [Button.url("ᴀᴅᴅ ᴛᴇᴀᴍ", ADD_TEAM_URL)],
-        [Button.url("ᴜᴘᴅᴀᴛᴇ", UPDATE_URL), Button.url("ꜱᴜᴘᴘᴏʀᴛ", SUPPORT_URL)],
-        [Button.url("ᴏᴡɴᴇʀ", OWNER_URL)]
+        [Button.url("• ᴧᴅᴅ мᴇ ʙᴧʙʏ •", "https://t.me/Era_Roxbot?startgroup=true")],
+        [Button.url("• ᴜᴘᴅᴧᴛᴇ •", "https://t.me/net_pro_max"), Button.url("• sᴜᴘᴘᴏꝛᴛ •", "https://t.me/+wz3nMgrWoyczYTll")],
+        [Button.url("˹ ❍ᴡɴᴇꝛ ˼", "https://t.me/DvisDmBot?start")]
     ]
     await event.reply(
         "**👋 ʜᴇʟʟᴏ! ᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ʙᴏᴛ.**\n\n"
@@ -219,12 +213,12 @@ async def help(event):
     if not await is_command_for_me(event):
         return
     await event.reply(
-        "**📖 ʜᴇʟᴘ ᴍᴇɴᴜ:**\n\n"
+        "**📖 ʜᴇʟʟᴘ ᴍᴇɴᴜ:**\n\n"
         "**/set <ᴄʜᴀɴɴᴇʟ ᴜsᴇʀɴᴀᴍᴇ ᴏʀ ɪᴅ ᴏʀ ʟɪɴᴋ> (ᴜᴘ ᴛᴏ 4)** - ᴛᴏ sᴇᴛ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ғᴏʀ ᴀ ɢʀᴏᴜᴘ.\n"
         "**/fsub** - ᴛᴏ ᴍᴀɴᴀɢᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ (ᴏɴ/ᴏғғ).\n"
         "**/reset** - ᴛᴏ ʀᴇsᴇᴛ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴀɴᴅ ʀᴇᴍᴏᴠᴇ ᴀʟʟ ᴄʜᴀɴɴᴇʟs.\n"
         "**/start** - ᴛᴏ ᴅɪsᴘʟᴀʏ ᴛʜᴇ ᴡᴇʟᴄᴏᴍᴇ ᴍᴇssᴀɢᴇ.\n"
-        "**/help** - ᴛᴏ ᴅɪsᴘʟᴀʏ ᴛʜᴇ ʜᴇʟᴘ ᴍᴇɴᴜ.\n"
+        "**/help** - ᴛᴏ ᴅɪsᴘʟᴀʏ ᴛʜᴇ ʜᴇʟʟᴘ ᴍᴇɴᴜ.\n"
         "**/stats** - ᴛᴏ ᴠɪᴇᴡ ʙᴏᴛ sᴛᴀᴛɪsᴛɪᴄs.\n"
         "**/broadcast <ᴍᴇssᴀɢᴇ>** - ᴛᴏ ʙʀᴏᴀᴅᴄᴀsᴛ ᴀ ᴍᴇssᴀɢᴇ ᴛᴏ ᴀʟʟ ᴜsᴇʀs.\n"
         "**/ban <ᴜsᴇʀ ɪᴅ>** - ᴛᴏ ʙᴀɴ ᴀ ᴜsᴇʀ.\n"
@@ -377,7 +371,7 @@ async def toggle_forcesub(event):
         
     except Exception as e:
         logger.error(f"Error in toggle_forcesub: {str(e)}")
-        await event.answer("**❌ An error occurred while processing your request.**", alert=True)
+        await event.answer("**❌ ᴀɴ ᴇʀʀᴏʀ occᴜʀᴇᴅ.**", alert=True)
 
 # Updated check_fsub_handler with 2x2 join button layout and confirm join button
 @app.on(events.NewMessage)
