@@ -63,19 +63,19 @@ async def get_all_groups():
             pass
     return groups
 
-# Parse force sub channels/groups (max 4 allowed)
+# Parse FSUB channels (max 4 allowed)
 FSUB_IDS = []
 if FSUB:
     try:
         fsub_list = FSUB.split()
         if len(fsub_list) > 4:
-            logger.warning("Maximum 4 force subscription channels allowed. Using first 4.")
+            logger.warning("Maximum 4 FSUB channels allowed. Using first 4.")
             fsub_list = fsub_list[:4]
         FSUB_IDS = [int(x) if x.isdigit() or (x.startswith('-') and x[1:].isdigit()) else x for x in fsub_list]
     except Exception as e:
         logger.error("Invalid FSUB format. Should be space-separated channel IDs or usernames.")
 
-# Function to check owner's force subscription
+# Check owner's FSUB compliance
 async def check_owner_fsub(user_id):
     if not FSUB_IDS or user_id == OWNER_ID:
         return True
@@ -101,18 +101,19 @@ async def check_owner_fsub(user_id):
             logger.error(f"Error checking user in channel {channel_id}: {e}")
     return True if not missing_subs else missing_subs
 
-# Decorator to check force subscription compliance
+# Decorator to check FSUB compliance
 def check_fsub(func):
     async def wrapper(event):
         user_id = event.sender_id
         if event.text and event.text.startswith('/'):
             missing_owner_subs = await check_owner_fsub(user_id)
             if missing_owner_subs is not True:
-                # Create join buttons in 2x2 grid; text "Join"
+                # Create join buttons in 2x2 grid; include chat_id in callback data
                 btns = []
                 temp = []
                 for channel in missing_owner_subs:
-                    temp.append(Button.inline("Join", data=f"fsub_join_{channel.id}"))
+                    # Callback data now: fsub_join_<chat_id>_<channel_id>
+                    temp.append(Button.inline("Join", data=f"fsub_join_{event.chat_id}_{channel.id}"))
                     if len(temp) == 2:
                         btns.append(temp)
                         temp = []
@@ -141,7 +142,7 @@ async def is_command_for_me(event):
         logger.error(f"Error checking command target: {e}")
         return True
 
-# When bot is added to a group, send an intro message (small caps & emoji)
+# When bot is added to a group, send intro message
 @app.on(events.ChatAction)
 async def handle_added_to_chat(event):
     if hasattr(event, 'user_left') and event.user_left:
@@ -155,7 +156,7 @@ async def handle_added_to_chat(event):
             await add_group(chat.id)
             intro_text = (
                 "🤖 ʜᴇʟʟᴏ! ɪ'ᴍ {}.\n\n"
-                "ᴛʜᴀɴᴋꜱ ᴛᴏ ᴀᴅᴅɪɴɢ ᴍᴇ ᴛᴏ ᴛʜɪꜱ ɢʀᴏᴜᴘ.\n\n"
+                "ᴛʜᴀɴᴋꜱ ᴛᴏ ᴀᴅᴅɪɴɢ ᴍᴇ ᴛᴏ ᴛʜɪs ɢʀᴏᴜᴘ.\n\n"
                 "⚙️ ʀᴇǫᴜɪʀᴇᴅ ᴘᴇʀᴍɪꜱꜱɪᴏɴꜱ:\n"
                 "   • sᴇɴᴅ ᴍᴇꜱꜱᴀɢᴇꜱ\n"
                 "   • ᴅᴇʟᴇᴛᴇ ᴍᴇꜱꜱᴀɢᴇꜱ\n"
@@ -165,7 +166,7 @@ async def handle_added_to_chat(event):
             ).format(me.first_name)
             await app.send_message(chat.id, intro_text, parse_mode='md')
 
-# /start command with 1,2,1 button layout (small caps & emoji)
+# /start command with 1,2,1 button layout
 @app.on(events.NewMessage(pattern=r"^/start(?:@\w+)?$"))
 @check_fsub
 async def start(event):
@@ -185,7 +186,7 @@ async def start(event):
     ]
     await event.reply(welcome_text, buttons=buttons, parse_mode='md')
 
-# /help command with updated instructions (small caps & emoji)
+# /help command with updated instructions
 @app.on(events.NewMessage(pattern=r"^/help(?:@\w+)?$"))
 @check_fsub
 async def help(event):
@@ -214,7 +215,7 @@ async def is_admin_or_owner(chat_id, user_id):
         logger.error(f"Error checking admin status: {e}")
         return False
 
-# /set command to set force subscription channels
+# /set command to set FSUB channels
 @app.on(events.NewMessage(pattern=r"^/set(?:@\w+)?( .+)?$", func=lambda e: e.is_group))
 @check_fsub
 async def set_forcesub(event):
@@ -275,7 +276,7 @@ async def set_forcesub(event):
         upsert=True
     )
     set_by_user = f"@{event.sender.username}" if event.sender.username else event.sender.first_name
-    # Caption with hyperlinked team names; parse_mode used so markdown renders
+    # Hyperlinked caption using markdown
     channel_list = "\n".join([f"• [{c['title']}]({c['link']})" for c in fsub_data])
     if len(fsub_data) == 1:
         channel_info = fsub_data[0]
@@ -289,7 +290,7 @@ async def set_forcesub(event):
     else:
         await event.reply(f"✅ ꭑ ʙᴏᴛ ꜰᴏʀᴄᴇ ꜱᴜʙꜱᴄʀɪᴘᴛɪᴏɴ ꜱᴇᴛ:\n\n{channel_list}", parse_mode='md')
 
-# /fsub command to manage force subscription settings
+# /fsub command to manage FSUB settings
 @app.on(events.NewMessage(pattern=r"^/fsub(?:@\w+)?$", func=lambda e: e.is_group))
 @check_fsub
 async def manage_forcesub(event):
@@ -326,7 +327,7 @@ async def manage_forcesub(event):
         logger.error(f"Error in manage_forcesub: {str(e)}")
         await event.reply("🚫 ᴀɴ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀᴇᴅ.", parse_mode='md')
 
-# Callback for toggling force subscription status
+# Callback for toggling FSUB status
 @app.on(events.CallbackQuery(pattern=r"fsub_toggle_(\-?\d+)_([01])"))
 async def toggle_forcesub(event):
     try:
@@ -369,7 +370,7 @@ async def toggle_forcesub(event):
         logger.error(f"Error in toggle_forcesub: {str(e)}")
         await event.answer("🚫 ᴀɴ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀᴇᴅ.", alert=True)
 
-# /reset command to remove force subscription from a group
+# /reset command to remove FSUB from a group
 @app.on(events.NewMessage(pattern=r"^/reset(?:@\w+)?$", func=lambda e: e.is_group))
 @check_fsub
 async def reset_forcesub(event):
@@ -494,7 +495,7 @@ async def handle_new_message(event):
     elif event.is_group:
         await add_group(event.chat_id)
 
-# Check force subscription in groups and send join buttons (2x2 grid, markdown enabled)
+# Check FSUB in groups and send join buttons (2x2 grid)
 @app.on(events.NewMessage)
 async def check_fsub_handler(event):
     if hasattr(event, '_fsub_checked'):
@@ -533,7 +534,8 @@ async def check_fsub_handler(event):
                 btns = []
                 temp = []
                 for c in forcesub_data['channels']:
-                    temp.append(Button.inline("Join", data=f"fsub_join_{c['id']}"))
+                    # Include chat_id and channel id in callback data
+                    temp.append(Button.inline("Join", data=f"fsub_join_{event.chat_id}_{c['id']}"))
                     if len(temp) == 2:
                         btns.append(temp)
                         temp = []
@@ -546,16 +548,15 @@ async def check_fsub_handler(event):
                     parse_mode='md'
                 )
             except Exception as e:
-                logger.error(f"Error sending force sub message: {e}")
+                logger.error(f"Error sending FSUB message: {e}")
             return
 
-# Callback for force subscription join buttons
-@app.on(events.CallbackQuery(pattern=r"fsub_join_(\d+)"))
+# Callback for FSUB join buttons (chat id and channel id in callback data)
+@app.on(events.CallbackQuery(pattern=r"fsub_join_(\-?\d+)_(\d+)"))
 async def fsub_join_handler(event):
     try:
-        channel_id = int(event.pattern_match.group(1))
-        # Use event.chat_id directly
-        chat_id = event.chat_id
+        chat_id = int(event.pattern_match.group(1))
+        channel_id = int(event.pattern_match.group(2))
         forcesub_data = await forcesub_collection.find_one({"chat_id": chat_id})
         target_channel = None
         if forcesub_data:
@@ -565,17 +566,17 @@ async def fsub_join_handler(event):
                     break
         if not target_channel:
             return await event.answer("Channel not found.", alert=True)
-        # If link missing, generate it
         if not target_channel.get("link"):
             invite = await app(ExportChatInviteRequest(channel_id))
             target_channel["link"] = invite.link
-        # Send DM thanking for join and answer callback with URL (cache_time=0 to force redirect)
-        await app.send_message(event.sender_id, "🙏 Tx for joining!")
-        await event.answer("Redirecting...", url=target_channel["link"], cache_time=0)
+        try:
+            await app.send_message(event.sender_id, "🙏 ᴛʜᴀɴᴋꜱ ꜰᴏʀ ᴊᴏɪɴɪɴɢ!")
+        except Exception as e:
+            logger.error(f"Error sending DM to user {event.sender_id}: {e}")
+        await event.answer("Redirecting...", url=target_channel["link"])
     except Exception as e:
         logger.error(f"Error in fsub_join_handler: {e}")
-        await event.answer("🚫 An error occurred.", alert=True)
-
+        await event.answer("🚫 ᴀɴ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀᴇᴅ.", alert=True)
 
 async def startup_notification():
     try:
