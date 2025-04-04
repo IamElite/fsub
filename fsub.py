@@ -189,13 +189,7 @@ async def start(event):
     user_id = event.sender_id
     await add_user(user_id)
     user = await event.get_sender()
-    photo = None
-    async for p in app.iter_profile_photos(user, limit=1):
-        photo = await app.download_media(p)
-        break
-    mention = f"[{user.first_name}](tg://user?id={user.id})"
-    message = f"✨ **User Activity Log**\n━━━━━━━━━━━━━━━━━━━\n👤 **User ID:** `{user_id}`\n🙋 **Name:** {mention}\n🔗 **Username:** {user.username if user.username else 'No User name'}\n🔄 **Action:** Started the bot\n⏰ **Time:** `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`\n📡 **Bot Status:** Active\n━━━━━━━━━━━━━━━━━━━\n💎 _Welcome to our bot!_"
-    buttons = [
+        buttons = [
         [Button.url("• ᴧᴅᴅ мᴇ ʙᴧʙʏ •", "https://t.me/Era_Roxbot?startgroup=true")],
         [Button.url("• ᴜᴘᴅᴧᴛᴇ •", "https://t.me/net_pro_max"), Button.url("• sᴜᴘᴘᴏꝛᴛ •", "https://t.me/+wz3nMgrWoyczYTll")],
         [Button.url("˹ ❍ᴡɴᴇꝛ ˼", "https://t.me/DvisDmBot?start")]
@@ -206,8 +200,16 @@ async def start(event):
         "**➲ ᴛʏᴘᴇ /help ғᴏʀ ᴍᴏʀᴇ ɪɴғᴏʀᴍᴀᴛɪᴏɴ.**",
         buttons=buttons
     )
-    asyncio.create_task(app.send_message(LOGGER_ID, message, file=photo))
-    #await app.send_message(LOGGER_ID, message, file=photo)
+
+    photo = None
+    async for p in app.iter_profile_photos(user, limit=1):
+        photo = await app.download_media(p)
+        break
+    mention = f"[{user.first_name}](tg://user?id={user.id})"
+    message = f"✨ **User Activity Log**\n━━━━━━━━━━━━━━━━━━━\n👤 **User ID:** `{user_id}`\n🙋 **Name:** {mention}\n🔗 **Username:** {user.username if user.username else 'No User name'}\n🔄 **Action:** Started the bot\n⏰ **Time:** `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`\n📡 **Bot Status:** Active\n━━━━━━━━━━━━━━━━━━━\n💎 _Welcome to our bot!_"
+
+    #asyncio.create_task(app.send_message(LOGGER_ID, message, file=photo))
+    await app.send_message(LOGGER_ID, message, file=photo)
 
 
 @app.on(events.NewMessage(pattern=r"^/help(?:@\w+)?$"))
