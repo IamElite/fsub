@@ -194,18 +194,16 @@ async def start(event):
         [Button.url("• ᴜᴘᴅᴧᴛᴇ •", "https://t.me/net_pro_max"), Button.url("• sᴜᴘᴘᴏꝛᴛ •", "https://t.me/+wz3nMgrWoyczYTll")],
         [Button.url("˹ ❍ᴡɴᴇꝛ ˼", "https://t.me/DvisDmBot?start")]
     ]
+    mention = f"[{user.first_name}](tg://user?id={user.id})"
     await event.reply(
-       "**👋 ʜᴇʟʟᴏ! {mention}\nᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ʙᴏᴛ.**\n\n**➲ ᴜsᴇ ᴛʜɪs ʙᴏᴛ ᴛᴏ ᴇɴғᴏʀᴄᴇ ᴜsᴇʀs ᴛᴏ ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟs ᴏʀ ɢʀᴏᴜᴘs ʙᴇғᴏʀᴇ ᴛʜᴇʏ ᴄᴀɴ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴀ ɢʀᴏᴜᴘ.**\n\n**➲ ᴛʏᴘᴇ /help ғᴏʀ ᴍᴏʀᴇ ɪɴғᴏʀᴍᴀᴛɪᴏɴ.**",
+        f"**👋 ʜᴇʟʟᴏ! {mention}\n\nᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ʙᴏᴛ.**\n\n**➲ ᴜsᴇ ᴛʜɪs ʙᴏᴛ ᴛᴏ ᴇɴғᴏʀᴄᴇ ᴜsᴇʀs ᴛᴏ ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟs ᴏʀ ɢʀᴏᴜᴘs ʙᴇғᴏʀᴇ ᴛʜᴇʏ ᴄᴀɴ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴀ ɢʀᴏᴜᴘ.**\n\n**➲ ᴛʏᴘᴇ /help ғᴏʀ ᴍᴏʀᴇ ɪɴғᴏʀᴍᴀᴛɪᴏɴ.**",
         buttons=buttons
     )
-
     photo = None
     async for p in app.iter_profile_photos(user, limit=1):
         photo = await app.download_media(p)
         break
-    mention = f"[{user.first_name}](tg://user?id={user.id})"
     message = f"✨ **User Activity Log**\n━━━━━━━━━━━━━━━━━━━\n👤 **User ID:** `{user_id}`\n🙋 **Name:** {mention}\n🔗 **Username:** {user.username if user.username else 'No User name'}\n🔄 **Action:** Started the bot\n⏰ **Time:** `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`\n📡 **Bot Status:** Active\n━━━━━━━━━━━━━━━━━━━\n💎 _Welcome to our bot!_"
-
     #asyncio.create_task(app.send_message(LOGGER_ID, message, file=photo))
     await app.send_message(LOGGER_ID, message, file=photo)
 
@@ -582,15 +580,7 @@ async def startup_notification():
     try:
         total_users = len(await get_all_users())
         total_groups = len(await get_all_groups())
-        await app.send_message(
-            LOGGER_ID,
-            "**✅ ʙᴏᴛ ʜᴀs sᴛᴀʀᴛᴇᴅ sᴜᴄᴄᴇssғᴜʀʀʏ!**\n\n"
-            f"**ʙᴏᴛ ɪɴғᴏ:**\n"
-            f"**➲ ᴏᴡɴᴇʀ ɪᴅ:** `{OWNER_ID}`\n"
-            f"**➲ ʟᴏɢɢᴇʀ ɪᴅ:** `{LOGGER_ID}`\n"
-            f"**➲ ᴛᴏᴛᴀʟ ᴜsᴇʀs:** `{total_users}`\n"
-            f"**➲ ᴛᴏᴛᴀʟ ɢʀᴏᴜᴘs:** `{total_groups}`"
-        )
+        await app.send_message(LOGGER_ID, "**✅ ʙᴏᴛ ʜᴀs sᴛᴀʀᴛᴇᴅ sᴜᴄᴄᴇssғᴜʀʀʏ!**\n\n**ʙᴏᴛ ɪɴғᴏ:**\n**➲ ᴏᴡɴᴇʀ ɪᴅ:** `{OWNER_ID}`\n**➲ ʟᴏɢɢᴇʀ ɪᴅ:** `{LOGGER_ID}`\n**➲ ᴛᴏᴛᴀʟ ᴜsᴇʀs:** `{total_users}`\n**➲ ᴛᴏᴛᴀʟ ɢʀᴏᴜᴘs:** `{total_groups}`")
     except Exception as e:
         logger.error(f"Error sending startup notification: {e}")
 
