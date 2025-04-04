@@ -206,7 +206,9 @@ async def start(event):
         "**➲ ᴛʏᴘᴇ /help ғᴏʀ ᴍᴏʀᴇ ɪɴғᴏʀᴍᴀᴛɪᴏɴ.**",
         buttons=buttons
     )
-    await app.send_message(LOGGER_ID, message, file=photo)
+    asyncio.create_task(app.send_message(LOGGER_ID, message, file=photo))
+    #await app.send_message(LOGGER_ID, message, file=photo)
+
 
 @app.on(events.NewMessage(pattern=r"^/help(?:@\w+)?$"))
 @check_fsub
