@@ -375,67 +375,83 @@ async def toggle_forcesub(event):
         logger.error(f"Error in toggle_forcesub: {str(e)}")
         await event.answer("**❌ ᴀɴ ᴇʀʀᴏʀ occᴜʀᴇᴅ.**", alert=True)
 
-# Updated check_fsub_handler with 2x2 join button layout and confirm join button
+#-----------
 @app.on(events.NewMessage)
 async def check_fsub_handler(event):
     if hasattr(event, '_fsub_checked'):
         return
 
-    user_id = event.sender_id
-    if event.is_group:
+    if not event.is_group:
+        return
+
+    try:
+        # Get user and chat info
+        sender = await event.get_sender()
         chat_id = event.chat_id
-        forcesub_data = await forcesub_collection.find_one({"chat_id": chat_id})
-        if not forcesub_data or not forcesub_data.get("channels") or not forcesub_data.get("enabled", True):
+        
+        # Debugging line - remove in production
+        print(f"Processing message from {sender.id} in chat {chat_id}")
+
+        # Get force sub settings
+        forcesub_data = await forcesub_collection.find_one(
+            {"chat_id": chat_id, "enabled": True},
+            projection={"channels": 1}
+        )
+        
+        if not forcesub_data or not forcesub_data.get("channels"):
             return
 
-        is_member = True
+        # Check channel membership
+        not_joined = []
         for channel in forcesub_data["channels"]:
             try:
-                if isinstance(channel["id"], int):
-                    await app(GetParticipantRequest(channel=channel["id"], participant=user_id))
-                else:
-                    channel_entity = await app.get_entity(channel["id"])
-                    await app(GetParticipantRequest(channel=channel_entity, participant=user_id))
+                channel_entity = channel["id"] if isinstance(channel["id"], int) else await app.get_entity(channel["id"])
+                await app(GetParticipantRequest(channel=channel_entity, participant=sender.id))
             except UserNotParticipantError:
-                is_member = False
-                break
+                not_joined.append(channel)
             except Exception as e:
-                if "Could not find the input entity" in str(e):
-                    logger.warning(f"Could not check user {user_id} in channel {channel['id']}: {e}")
-                    is_member = False
-                    break
-                else:
-                    logger.error(f"An error occurred while checking user participation: {e}")
-                    return
+                print(f"Error checking channel {channel['id']}: {str(e)}")
+                continue
 
-        if not is_member:
-            try:
-                await event.delete()
-            except Exception as e:
-                logger.error(f"Could not delete message: {e}")
-            try:
-                buttons = []
-                # Prepare join buttons for each channel
-                for c in forcesub_data['channels']:
-                    if c.get('link') and c.get('title'):
-                        buttons.append(Button.url("๏ ᴊᴏɪɴ ๏", c['link']))
-                # Arrange buttons in 2 columns
-                join_buttons = []
-                for i in range(0, len(buttons), 2):
-                    join_buttons.append(buttons[i:i+2])
-                # Add confirm join button with chat id in callback data
-                #mention = f"[{user.first_name or 'User'}](tg://user?id={user.id})"
-                join_buttons.append([Button.inline("ᴄᴏɴғɪʀᴍ ᴊᴏɪɴ", data=f"confirm_join_{chat_id}")])
-                channel_lines = ["๏ [{}]({})".format(c["title"], c["link"]) for c in forcesub_data["channels"] if c.get("title") and c.get("link")]
-                await event.reply(
-                    "👋 ʜᴇʟʟᴏ\n\nʏᴏᴜ ɴᴇᴇᴅ ᴊᴏɪɴ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ.\n\n⬇️ᴘʟᴇᴀsᴇ ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ:⬇️",
-                    #f"👋 ʜᴇʟʟᴏ {mention},\n\nʏᴏᴜ ɴᴇᴇᴅ ᴊᴏɪɴ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ.\n\n⬇️ᴘʟᴇᴀsᴇ ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ:⬇️",
-                    buttons=join_buttons
-                )
-            except Exception as e:
-                logger.error(f"An error occurred while sending the force sub message: {e}")
+        if not not_joined:
+            setattr(event, '_fsub_checked', True)
             return
-    setattr(event, '_fsub_checked', True)
+
+        # Delete original message
+        try:
+            await event.delete()
+        except Exception as e:
+            print(f"Couldn't delete message: {str(e)}")
+
+        # Prepare buttons
+        buttons = []
+        for channel in not_joined:
+            if channel.get("link") and channel.get("title"):
+                buttons.append(Button.url(f"Join {channel['title']}", channel["link"]))
+
+        # Create message with proper mention
+        try:
+            mention = f"[{sender.first_name}](tg://user?id={sender.id})" if sender.first_name else "User"
+            
+            message_text = (
+                f"👋 Hello {mention},\n\n"
+                "You must join our channel(s) to continue chatting here.\n"
+                "Please join using the buttons below then click 'Confirm Join':"
+            )
+            
+            # Add confirm button
+            if buttons:
+                buttons.append([Button.inline("✅ Confirm Join", f"confirm_join:{chat_id}:{sender.id}")])
+                await event.respond(
+                    message_text,
+                    buttons=buttons,
+                    link_preview=False
+                )
+        except Exception as e:
+            print(f"Failed to send message: {str(e)}")
+
+    except Exception as main_error:
+        print(f"Main error in handler: {str(main_error)}")
 
 # Callback for confirm join button
 @app.on(events.CallbackQuery(pattern=r"confirm_join_(\-?\d+)"))
