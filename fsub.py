@@ -64,8 +64,6 @@ async def get_all_groups():
             pass
     return groups
 
-mention = f"[{user.first_name}](tg://user?id={user.id})" # extra
-
 # Parse force sub channels/groups
 FSUB_IDS = []
 if FSUB:
@@ -196,6 +194,8 @@ async def start(event):
         [Button.url("• ᴜᴘᴅᴧᴛᴇ •", "https://t.me/net_pro_max"), Button.url("• sᴜᴘᴘᴏꝛᴛ •", "https://t.me/+wz3nMgrWoyczYTll")],
         [Button.url("˹ ❍ᴡɴᴇꝛ ˼", "https://t.me/DvisDmBot?start")]
     ]
+    
+    mention = f"[{user.first_name}](tg://user?id={user.id})"
     await event.reply(
         f"**👋 ʜᴇʟʟᴏ! {mention}\n\nᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ʙᴏᴛ.**\n\n**➲ ᴜsᴇ ᴛʜɪs ʙᴏᴛ ᴛᴏ ᴇɴғᴏʀᴄᴇ ᴜsᴇʀs ᴛᴏ ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟs ᴏʀ ɢʀᴏᴜᴘs ʙᴇғᴏʀᴇ ᴛʜᴇʏ ᴄᴀɴ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴀ ɢʀᴏᴜᴘ.**\n\n**➲ ᴛʏᴘᴇ /help ғᴏʀ ᴍᴏʀᴇ ɪɴғᴏʀᴍᴀᴛɪᴏɴ.**",
         buttons=buttons
@@ -424,10 +424,11 @@ async def check_fsub_handler(event):
                 for i in range(0, len(buttons), 2):
                     join_buttons.append(buttons[i:i+2])
                 # Add confirm join button with chat id in callback data
+                mention = f"[{user.first_name}](tg://user?id={user.id})"
                 join_buttons.append([Button.inline("ᴄᴏɴғɪʀᴍ ᴊᴏɪɴ", data=f"confirm_join_{chat_id}")])
                 channel_lines = ["๏ [{}]({})".format(c["title"], c["link"]) for c in forcesub_data["channels"] if c.get("title") and c.get("link")]
                 await event.reply(
-                    "ʜᴇʟʟᴏ ᴛʜᴇʀᴇ, ʏᴏᴜ ɴᴇᴇᴅ ᴊᴏɪɴ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ. ᴘʟᴇᴀsᴇ ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ:",
+                    f"👋 ʜᴇʟʟᴏ {mention},\n\nʏᴏᴜ ɴᴇᴇᴅ ᴊᴏɪɴ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ.\n⬇️ᴘʟᴇᴀsᴇ ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ:⬇️",
                     buttons=join_buttons
                 )
             except Exception as e:
