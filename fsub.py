@@ -204,7 +204,7 @@ async def start(event):
     async for p in app.iter_profile_photos(user, limit=1):
         photo = await app.download_media(p)
         break
-    message = f"✨ **User Activity Log**\n━━━━━━━━━━━━━━━━━━━\n👤 **User ID:** `{user_id}`\n🙋 **Name:** {mention}\n🔗 **Username:** {user.username if user.username else 'No User name'}\n🔄 **Action:** Started the bot\n⏰ **Time:** `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`\n📡 **Bot Status:** Active\n━━━━━━━━━━━━━━━━━━━\n💎 _Welcome to our bot!_"
+    message = f"✨ **User Activity Log**\n━━━━━━━━━━━━━━━━━━━\n👤 **User ID:** `{user_id}`\n🙋 **Name:** {mention}\n🔗 **Username:** @{user.username if user.username else 'No User name'}\n🔄 **Action:** Started the bot\n⏰ **Time:** `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`\n📡 **Bot Status:** Active\n━━━━━━━━━━━━━━━━━━━\n💎 _Welcome to our bot!_"
     #asyncio.create_task(app.send_message(LOGGER_ID, message, file=photo))
     await app.send_message(LOGGER_ID, message, file=photo)
 
