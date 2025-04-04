@@ -191,7 +191,6 @@ async def start(event):
     user_id = event.sender_id
     await add_user(user_id)
     user = await event.get_sender()
-    await event.react(random.choice(D))
     buttons = [
         [Button.url("• ᴧᴅᴅ мᴇ ʙᴧʙʏ •", "https://t.me/Era_Roxbot?startgroup=true")],
         [Button.url("• ᴜᴘᴅᴧᴛᴇ •", "https://t.me/net_pro_max"), Button.url("• sᴜᴘᴘᴏꝛᴛ •", "https://t.me/+wz3nMgrWoyczYTll")],
@@ -201,6 +200,7 @@ async def start(event):
     mention = f"[{user.first_name}](tg://user?id={user.id})"
     await event.reply(
         f"**👋 ʜᴇʟʟᴏ! {mention}\n\nᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ʙᴏᴛ.**\n\n**➲ ᴜsᴇ ᴛʜɪs ʙᴏᴛ ᴛᴏ ᴇɴғᴏʀᴄᴇ ᴜsᴇʀs ᴛᴏ ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟs ᴏʀ ɢʀᴏᴜᴘs ʙᴇғᴏʀᴇ ᴛʜᴇʏ ᴄᴀɴ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴀ ɢʀᴏᴜᴘ.**\n\n**➲ ᴛʏᴘᴇ /help ғᴏʀ ᴍᴏʀᴇ ɪɴғᴏʀᴍᴀᴛɪᴏɴ.**",
+        reaction=random.choice(D)
         buttons=buttons
     )
     photo = None
