@@ -1,4 +1,4 @@
-import os, logging, asyncio
+import os, logging, random, asyncio
 from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorClient
 from telethon import TelegramClient, events, Button
@@ -63,6 +63,8 @@ async def get_all_groups():
         except Exception:
             pass
     return groups
+
+D = ["😘", "👾", "🤝", "👀", "❤️‍🔥", "💘", "😍", "😇", "🕊️", "🐳", "🎉", "🏆", "🗿", "⚡", "💯", "👌", "🍾"]
 
 # Parse force sub channels/groups
 FSUB_IDS = []
@@ -189,6 +191,7 @@ async def start(event):
     user_id = event.sender_id
     await add_user(user_id)
     user = await event.get_sender()
+    await message.react(random.choice(D))
     buttons = [
         [Button.url("• ᴧᴅᴅ мᴇ ʙᴧʙʏ •", "https://t.me/Era_Roxbot?startgroup=true")],
         [Button.url("• ᴜᴘᴅᴧᴛᴇ •", "https://t.me/net_pro_max"), Button.url("• sᴜᴘᴘᴏꝛᴛ •", "https://t.me/+wz3nMgrWoyczYTll")],
