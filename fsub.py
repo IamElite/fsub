@@ -389,9 +389,6 @@ async def check_fsub_handler(event):
         sender = await event.get_sender()
         chat_id = event.chat_id
         
-        # Debugging line - remove in production
-        print(f"Processing message from {sender.id} in chat {chat_id}")
-
         # Get force sub settings
         forcesub_data = await forcesub_collection.find_one(
             {"chat_id": chat_id, "enabled": True},
@@ -405,8 +402,8 @@ async def check_fsub_handler(event):
         not_joined = []
         for channel in forcesub_data["channels"]:
             try:
-                channel_entity = channel["id"] if isinstance(channel["id"], int) else await app.get_entity(channel["id"])
-                await app(GetParticipantRequest(channel=channel_entity, participant=sender.id))
+                channel_entity = await app.get_entity(channel["id"])
+                await app.get_permissions(entity=channel_entity, user=sender)
             except UserNotParticipantError:
                 not_joined.append(channel)
             except Exception as e:
@@ -427,7 +424,7 @@ async def check_fsub_handler(event):
         buttons = []
         for channel in not_joined:
             if channel.get("link") and channel.get("title"):
-                buttons.append(Button.url(f"Join {channel['title']}", channel["link"]))
+                buttons.append([Button.url(f"Join {channel['title']}", channel["link"])])
 
         # Create message with proper mention
         try:
@@ -441,10 +438,17 @@ async def check_fsub_handler(event):
             
             # Add confirm button
             if buttons:
-                buttons.append([Button.inline("✅ Confirm Join", f"confirm_join:{chat_id}:{sender.id}")])
+                # Flatten the buttons list if needed
+                if all(isinstance(button, list) for button in buttons):
+                    buttons = [btn for sublist in buttons for btn in sublist]
+                
+                # Arrange buttons in rows of 2
+                button_rows = [buttons[i:i+2] for i in range(0, len(buttons), 2)]
+                button_rows.append([Button.inline("✅ Confirm Join", f"confirm_join:{chat_id}:{sender.id}")])
+                
                 await event.respond(
                     message_text,
-                    buttons=buttons,
+                    buttons=button_rows,
                     link_preview=False
                 )
         except Exception as e:
