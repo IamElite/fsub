@@ -198,14 +198,10 @@ async def start(event):
     ]
     
     mention = f"[{user.first_name}](tg://user?id={user.id})"
-    DV = await event.reply(
+    await event.reply(
         f"**👋 ʜᴇʟʟᴏ! {mention}\n\nᴡᴇʟᴄᴏᴍᴇ ᴛᴏ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ʙᴏᴛ.**\n\n**➲ ᴜsᴇ ᴛʜɪs ʙᴏᴛ ᴛᴏ ᴇɴғᴏʀᴄᴇ ᴜsᴇʀs ᴛᴏ ᴊᴏɪɴ ᴄʜᴀɴɴᴇʟs ᴏʀ ɢʀᴏᴜᴘs ʙᴇғᴏʀᴇ ᴛʜᴇʏ ᴄᴀɴ sᴇɴᴅ ᴍᴇssᴀɢᴇs ɪɴ ᴀ ɢʀᴏᴜᴘ.**\n\n**➲ ᴛʏᴘᴇ /help ғᴏʀ ᴍᴏʀᴇ ɪɴғᴏʀᴍᴀᴛɪᴏɴ.**",
         buttons=buttons
     )
-    try:
-        await event.respond('', react=random.choice(D), reply_to=DV.id)
-    except Exception as e:
-        print(f"Failed to send reaction: {e}")
     photo = None
     async for p in app.iter_profile_photos(user, limit=1):
         photo = await app.download_media(p)
