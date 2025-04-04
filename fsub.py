@@ -191,7 +191,7 @@ async def start(event):
     user_id = event.sender_id
     await add_user(user_id)
     user = await event.get_sender()
-    await message.react(random.choice(D))
+    await event.react(random.choice(D))
     buttons = [
         [Button.url("• ᴧᴅᴅ мᴇ ʙᴧʙʏ •", "https://t.me/Era_Roxbot?startgroup=true")],
         [Button.url("• ᴜᴘᴅᴧᴛᴇ •", "https://t.me/net_pro_max"), Button.url("• sᴜᴘᴘᴏꝛᴛ •", "https://t.me/+wz3nMgrWoyczYTll")],
