@@ -583,7 +583,7 @@ async def startup_notification():
     try:
         total_users = len(await get_all_users())
         total_groups = len(await get_all_groups())
-        await app.send_message(LOGGER_ID, "**✅ ʙᴏᴛ ʜᴀs sᴛᴀʀᴛᴇᴅ sᴜᴄᴄᴇssғᴜʀʀʏ!**\n\n**ʙᴏᴛ ɪɴғᴏ:**\n**➲ ᴏᴡɴᴇʀ ɪᴅ:** `" + str(OWNER_ID) + "`\n**➲ ʟᴏɢɢᴇʀ ɪᴅ:** `" + str(LOGGER_ID) + "`\n**➲ ᴛᴏᴛᴀʟ �sᴇʀs:** `" + str(total_users) + "`\n**➲ ᴛᴏᴛᴀʟ ɢʀᴏᴜᴘs:** `" + str(total_groups) + "`")
+        await app.send_message(LOGGER_ID, "**✅ ʙᴏᴛ ʜᴀs sᴛᴀʀᴛᴇᴅ sᴜᴄᴄᴇssғᴜʀʀʏ!**\n\n**ʙᴏᴛ ɪɴғᴏ:**\n**➲ ᴏᴡɴᴇʀ ɪᴅ:** `" + str(OWNER_ID) + "`\n**➲ ʟᴏɢɢᴇʀ ɪᴅ:** `" + str(LOGGER_ID) + "`\n**➲ ᴛᴏᴛᴀʟ ᴜsᴇʀs:** `" + str(total_users) + "`\n**➲ ᴛᴏᴛᴀʟ ɢʀᴏᴜᴘs:** `" + str(total_groups) + "`")
     except Exception as e:
         logger.error(f"Error sending startup notification: {e}")
 
