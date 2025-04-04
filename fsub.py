@@ -439,7 +439,7 @@ async def check_fsub_handler(event):
                 await event.reply(
                     f"👋 **ʜᴇʟʟᴏ** {mention},\n\n"
                     "__ʏᴏᴜ ɴᴇᴇᴅ ᴊᴏɪɴ ᴛʜᴇ ғᴏʀᴄᴇ sᴜʙsᴄʀɪᴘᴛɪᴏɴ ᴄʜᴀɴɴᴇʟ(s) ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ.__\n\n"
-                    "**ᴘʟᴇᴀsᴇ ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ**:⤋⤋⤋⤋⤋⤋⤋⤋⤋",
+                    "**ᴘʟᴇᴀsᴇ ᴄʟɪᴄᴋ ᴛʜᴇ ʙᴜᴛᴛᴏɴs ʙᴇʟᴏᴡ**: 👉 ⟱⟱⟱⟱⟱⟱⟱ 👈",
                     buttons=join_buttons,
                     link_preview=False
                 )
